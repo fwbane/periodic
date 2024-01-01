@@ -3,43 +3,47 @@ from toga.constants import COLUMN
 from toga.style import Pack
 from datetime import datetime
 
-class TogaDemo(toga.App):
+from Task import Task
+from TaskList import new_task_list_from_db
+
+class TogaToDoList(toga.App):
     def startup(self):
         # Create the main window
         self.main_window = toga.MainWindow()
 
-        left_table = toga.Table(
-            headings=["Task", "Due", ],
+        tasks = new_task_list_from_db()
+        print(tasks.get_all())
+
+        list_table = toga.Table(
+            headings=["Task", "Due", "Period"],
             data=[
-                ("root1", "value1"),
-                ("root2", "value2"),
-                ("root3", "value3"),
-                ("root4", "value4"),
+                (str(t.name), str(t.due), str(t.period)) for t in tasks.get_all()
             ],
         )
 
-        left_container = toga.OptionContainer(
+        list_container = toga.OptionContainer(
             content=[
-                ("Table", left_table)]
+                ("Table", list_table)
+            ]
         )
 
-        right_content = toga.Box(style=Pack(direction=COLUMN))
-        for b in range(0, 10):
-            right_content.add(
-                toga.Button(
-                    "Hello world %s" % b,
-                    on_press=self.button_handler,
-                    style=Pack(padding=20),
-                )
-            )
+        # right_content = toga.Box(style=Pack(direction=COLUMN))
+        # right_content.add(
+        #     toga.Button(
+        #         "FK", 
+        #         on_press=self.button_handler,
+        #         style=Pack(padding=20)
+        #     )
+        # )    
 
-        right_container = toga.ScrollContainer()
+        # right_container = toga.ScrollContainer()
 
-        right_container.content = right_content
+        # right_container.content = right_content
 
-        split = toga.SplitContainer()
+        # split = toga.SplitContainer()
 
-        split.content = [left_container, right_container]
+        # split.content = [list_container, right_container]
+
 
         cmd1 = toga.Command(
             self.action1,
@@ -56,7 +60,7 @@ class TogaDemo(toga.App):
 
         self.main_window.toolbar.add(cmd1, cmd2)
 
-        self.main_window.content = split
+        self.main_window.content = list_container
 
         # Show the main window
         self.main_window.show()
@@ -79,7 +83,7 @@ class TogaDemo(toga.App):
             )
 
 def main():
-    return toga.App("ToDo", "org.enabwf.todolist", startup=build)
+    return TogaToDoList("ToDo", "org.enabwf.todolist")
 
 if __name__ == "__main__":
     main().main_loop()
