@@ -18,6 +18,13 @@ def format_period(period):
     return_str = ""
     if period < 0:
         return "OVERDUE"
+    elif period > ONE_MONTH:
+        months = int(period/ONE_MONTH)
+        days = int((period%ONE_MONTH)/ONE_DAY)
+        return_str += format_plural(months, "month")
+        if days > 0:
+            return_str += ", {}".format(format_plural(days, "day"))
+        return return_str
     elif period > ONE_DAY:
         days = int(period/ONE_DAY)
         hours = int((period%ONE_DAY)/ONE_HOUR)
@@ -57,8 +64,16 @@ def add_new_task_to_DB(thing, path=DB_PATH):
     db = path
     conn = sqlite3.connect(db)
     c = conn.cursor()
-    mycommand = "INSERT INTO things VALUES ({}, '{}', {}, '{}', '{}', '{}');".format(thing.thingID, thing.name, thing.period, ", ".join([x.strftime(TIME_FORMAT) for x in thing.history]), thing.comment, thing.category)
-    print(mycommand)
+    mycommand = "INSERT INTO things VALUES ('{}', '{}', {}, '{}', '{}', '{}');".format(thing.thingID, thing.name, thing.period, ", ".join([x.strftime(TIME_FORMAT) for x in thing.history]), thing.comment, thing.category)
+    c.execute(mycommand)
+    conn.commit()
+    conn.close()
+
+def remove_task_from_DB(thingID, path=DB_PATH):
+    db = path
+    conn = sqlite3.connect(db)
+    c = conn.cursor()
+    mycommand = "DELETE FROM things WHERE thingID = '{}';".format(thingID)
     c.execute(mycommand)
     conn.commit()
     conn.close()

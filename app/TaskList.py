@@ -47,11 +47,17 @@ class TaskList():
             returnlist.append("{}\t\t{}".format(name, due))
         print("\n".join(returnlist))
     
-    def add(self, name="Untitled-Task-{}".format(datetime.datetime.today().strftime(TIME_FORMAT)), period=86400, last=datetime.datetime.now()):
-        newTask = Task(name, period, last)
-        thingID = newTask.thingID
-        self.tasks.append(newTask)
-        self.dict[thingID] = newTask
+    # def add(self, name="Untitled-Task-{}".format(datetime.datetime.today().strftime(TIME_FORMAT)), period=86400, last=datetime.datetime.now()):
+    #     newTask = Task(name, period, last)
+    #     thingID = newTask.thingID
+    #     self.tasks.append(newTask)
+    #     self.dict[thingID] = newTask
+
+    def add(self, new_task):
+        thingID = new_task.thingID
+        self.tasks.append(new_task)
+        self.dict[thingID] = new_task
+
 
     def check(self, query, time=datetime.datetime.now(), *otherTimes): 
         task = self.get_task(query)

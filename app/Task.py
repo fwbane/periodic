@@ -6,7 +6,7 @@ from uuid import uuid4
 class Task():
     def __init__(self, thingID=uuid4(), name="Untitled-Task-{}".format(datetime.datetime.today().strftime(TIME_FORMAT)), 
                 period=ONE_WEEK, 
-                history=[datetime.datetime.now()],
+                history=[datetime.datetime.now().strftime(TIME_FORMAT)],
                 comment="",
                 category=""):
         self.name = name
