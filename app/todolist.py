@@ -1,7 +1,7 @@
 import toga
 from toga.constants import COLUMN
 from toga.style import Pack
-from datetime import datetime
+import datetime
 
 from Task import Task
 from TaskList import new_task_list_from_db
@@ -12,20 +12,32 @@ class TogaToDoList(toga.App):
         self.main_window = toga.MainWindow()
 
         tasks = new_task_list_from_db()
-        print(tasks.get_all())
+        sorted_tasks = tasks.get_priority_list()
+        
+        def on_row_double_click(widget, row):
+            # Get the selected row data
+            selected_row_index = list_table.data.index(row)
+            selected_task = sorted_tasks[selected_row_index]
+            selected_task.check(datetime.datetime.now())
+            list_table.data = [(task.name, task.due, task.period) for task in sorted_tasks]
+            list_table.refresh()
+
 
         list_table = toga.Table(
             headings=["Task", "Due", "Period"],
             data=[
-                (str(t.name), str(t.due), str(t.period)) for t in tasks.get_all()
+                (str(t.name), str(t.due), str(t.period)) for t in sorted_tasks
             ],
-        )
+            on_double_click=on_row_double_click  # This handles the double-click event
+         )
 
         list_container = toga.OptionContainer(
             content=[
                 ("Table", list_table)
             ]
         )
+
+
 
         # right_content = toga.Box(style=Pack(direction=COLUMN))
         # right_content.add(

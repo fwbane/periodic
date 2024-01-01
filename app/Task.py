@@ -17,15 +17,19 @@ class Task():
         self.category = category
         self.thingID = thingID
         print(self.thingID, self.name, self.period, self.due, self.comment, self.category)
-    
+
+    def __lt__(self, other):
+        # Define comparison based on due date
+        return self.due < other.due
+
     def check(self, time=datetime.datetime.now(), *otherTimes):
         if isinstance(time, datetime.datetime):
-            self.history.append(time)
+            self.history.append(time.strftime(TIME_FORMAT))
         elif isinstance(time, tuple):
             try:
                 y, m, d = time
                 time = datetime.datetime(y,m,d)
-                self.history.append(time)
+                self.history.append(time.strftime(TIME_FORMAT))
             except:
                 print("Could not parse time of {}".format(time))
         latest = time
@@ -45,8 +49,9 @@ class Task():
                     except:
                         print("Could not parse time of {}".format(timestamp))
         newdue = latest + datetime.timedelta(seconds=self.period)
+        newdue = newdue.replace(microsecond=0)
         if newdue > self.due:
-            self.due = newdue
+            self.set_due(newdue)
         
     
     def get_period(self,):

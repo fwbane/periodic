@@ -1,7 +1,7 @@
 import datetime
 import heapq
 from constants import TIME_FORMAT, ONE_DAY, ONE_HOUR, ONE_MINUTE, ONE_MONTH, ONE_WEEK, TWO_DAYS, DB_PATH
-from utils import format_period, update_all_to_DB
+from utils import format_period, update_all_to_DB, format_time
 from Task import Task
 import sqlite3
 
@@ -12,6 +12,9 @@ class TaskList():
 
     def get_all(self):
         return self.tasks
+
+    def get_priority_list(self):
+        return sorted(self.tasks, key=lambda t:t.due)
 
     def get_task(self, query):
         if isinstance(query, str):
@@ -32,10 +35,8 @@ class TaskList():
     def show(self, ):
         heap = []
         for task in self.tasks:
-            #print(task.name, task.due, task.print_period())
             tilldue = task.due - datetime.datetime.now()
             sec = int(tilldue.total_seconds())
-            #print(tilldue)
             heapq.heappush(heap, (sec, task.name))
         returnlist = []
         heap.sort()
