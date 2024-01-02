@@ -1,12 +1,12 @@
 import datetime
 from constants import TIME_FORMAT, ONE_DAY, ONE_HOUR, ONE_MINUTE, ONE_MONTH, ONE_WEEK, TWO_DAYS, DB_PATH
-from utils import format_period, format_time, add_new_task_to_DB
+from utils import format_period, format_time, update_task_to_DB
 from uuid import uuid4
 
 class Task():
-    def __init__(self, thingID=uuid4(), name="Untitled-Task-{}".format(datetime.datetime.today().strftime(TIME_FORMAT)), 
+    def __init__(self, thingID=None, name="Untitled-Task-{}".format(datetime.datetime.today()), 
                 period=ONE_WEEK, 
-                history=[datetime.datetime.now().strftime(TIME_FORMAT)],
+                history=[datetime.datetime.now()],
                 comment="",
                 category=""):
         self.name = name
@@ -15,6 +15,8 @@ class Task():
         self.due =  history[-1] + datetime.timedelta(seconds=period)
         self.comment = comment
         self.category = category
+        if thingID is None:
+            thingID = uuid4()
         self.thingID = thingID
         print(self.thingID, self.name, self.period, self.due, self.comment, self.category)
 
@@ -22,36 +24,22 @@ class Task():
         # Define comparison based on due date
         return self.due < other.due
 
-    def check(self, time=datetime.datetime.now(), *otherTimes):
+    def check(self, time=datetime.datetime.now()):
         if isinstance(time, datetime.datetime):
-            self.history.append(time.strftime(TIME_FORMAT))
+            self.history.append(time)
         elif isinstance(time, tuple):
             try:
                 y, m, d = time
                 time = datetime.datetime(y,m,d)
-                self.history.append(time.strftime(TIME_FORMAT))
+                self.history.append(time)
             except:
                 print("Could not parse time of {}".format(time))
         latest = time
-        if len(otherTimes) > 0:
-            for timestamp in otherTimes:
-                if isinstance(timestamp, datetime.datetime):
-                    self.history.append(timestamp)
-                    if timestamp > time: 
-                        latest = timestamp
-                elif isinstance(timestamp, tuple):
-                    try:
-                        y, m, d = timestamp
-                        timestamp = datetime.datetime(y,m,d)
-                        self.history.append(timestamp)
-                        if timestamp > time:
-                            latest = timestamp
-                    except:
-                        print("Could not parse time of {}".format(timestamp))
         newdue = latest + datetime.timedelta(seconds=self.period)
         newdue = newdue.replace(microsecond=0)
         if newdue > self.due:
             self.set_due(newdue)
+        update_task_to_DB(self)
         
     
     def get_period(self,):

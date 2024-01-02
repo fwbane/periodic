@@ -40,7 +40,16 @@ def format_period(period):
             return_str += ", {}".format(format_plural(minutes, "minute"))
         return return_str
 
-def update_all_to_DB(things, path=DB_PATH): 
+def update_task_to_DB(thing, path=DB_PATH): 
+    conn = sqlite3.connect(path)
+    c = conn.cursor()
+    mycommand = "UPDATE things set name = '{}', period = {}, history = '{}', comment = '{}', category = '{}' WHERE id = '{}';".format(thing.name, thing.period, ", ".join([x.strftime(TIME_FORMAT) for x in thing.history]), thing.comment, thing.category, thing.thingID)
+    print(mycommand)
+    c.execute(mycommand)
+    conn.commit()
+    conn.close()
+
+def update_many_tasks_to_DB(things, path=DB_PATH): 
     db = path
     conn = sqlite3.connect(db)
     c = conn.cursor()
@@ -49,7 +58,7 @@ def update_all_to_DB(things, path=DB_PATH):
     for thing in things:
         if thing.thingID in thingIDs:
             print(thing.name)
-            mycommand = "UPDATE things set name = '{}', period = {}, history = '{}', comment = '{}', category = '{}' WHERE id = {};".format(thing.name, thing.period, ", ".join([x.strftime(TIME_FORMAT) for x in thing.history]), thing.comment, thing.category, thing.thingID)
+            mycommand = "UPDATE things set name = '{}', period = {}, history = '{}', comment = '{}', category = '{}' WHERE id = '{}';".format(thing.name, thing.period, ", ".join([x.strftime(TIME_FORMAT) for x in thing.history]), thing.comment, thing.category, thing.thingID)
             print(mycommand)
             c.execute(mycommand)
         else:
@@ -73,7 +82,7 @@ def remove_task_from_DB(thingID, path=DB_PATH):
     db = path
     conn = sqlite3.connect(db)
     c = conn.cursor()
-    mycommand = "DELETE FROM things WHERE thingID = '{}';".format(thingID)
+    mycommand = "DELETE FROM things WHERE id = '{}';".format(thingID)
     c.execute(mycommand)
     conn.commit()
     conn.close()
@@ -83,7 +92,17 @@ def read_db(path=DB_PATH):
     conn = sqlite3.connect(db)
     c = conn.cursor()
     things = c.execute('SELECT * FROM things')
-    global counter
     conn.close()
     return things
 
+def get_all_tasks_DB(path=DB_PATH):
+    conn = sqlite3.connect(path)
+    c = conn.cursor()
+    things = c.execute('SELECT * FROM things')
+    thinglist = []
+    for thing in things:
+        thingID, name, period, history, comment, category = thing
+        history = sorted(set([datetime.datetime.strptime(x, TIME_FORMAT) for x in history.split(", ")]))
+        thinglist.append([thingID,name,period,history,comment,category])
+    conn.close()
+    return thinglist

@@ -1,15 +1,21 @@
 import datetime
 import heapq
 from constants import TIME_FORMAT, ONE_DAY, ONE_HOUR, ONE_MINUTE, ONE_MONTH, ONE_WEEK, TWO_DAYS, DB_PATH
-from utils import format_period, update_all_to_DB, format_time
+from utils import format_period, update_many_tasks_to_DB, get_all_tasks_DB, format_time, add_new_task_to_DB, remove_task_from_DB
 from Task import Task
-import sqlite3
+
 
 class TaskList():
     def __init__(self, taskList=[]):
         self.tasks = taskList
         self.dict = {task.thingID:task for task in taskList}
 
+    def __iter__(self):
+        yield from self.tasks
+
+    def __getitem__(self, index):
+        return self.tasks[index]
+    
     def get_all(self):
         return self.tasks
 
@@ -47,6 +53,12 @@ class TaskList():
             returnlist.append("{}\t\t{}".format(name, due))
         print("\n".join(returnlist))
     
+    def delete(self, task):
+        self.tasks.remove(task)
+        del(self.dict[task.thingID])
+        remove_task_from_DB(task.thingID)
+        
+
     # def add(self, name="Untitled-Task-{}".format(datetime.datetime.today().strftime(TIME_FORMAT)), period=86400, last=datetime.datetime.now()):
     #     newTask = Task(name, period, last)
     #     thingID = newTask.thingID
@@ -57,6 +69,7 @@ class TaskList():
         thingID = new_task.thingID
         self.tasks.append(new_task)
         self.dict[thingID] = new_task
+        add_new_task_to_DB(new_task)
 
 
     def check(self, query, time=datetime.datetime.now(), *otherTimes): 
@@ -86,19 +99,15 @@ class TaskList():
             print("task {} not found.".format(task))
 
     def update_to_DB(self):
-        update_all_to_DB(self.get_all(), DB_PATH)
+        update_many_tasks_to_DB(self.get_all(), DB_PATH)
 
-def new_task_list_from_db(path=DB_PATH): #Does it make sense to have this here? We import sqlite3 here just for this
-    conn = sqlite3.connect(path)
-    c = conn.cursor()
-    things = c.execute('SELECT * FROM things')
+def new_task_list_from_db(path=DB_PATH): 
+    thinglist = get_all_tasks_DB(path)
     objectified_things = []
-    for thing in things:
+    for thing in thinglist:
         thingID, name, period, history, comment, category = thing
-        print(name, history)
-        history = sorted(set([datetime.datetime.strptime(x, TIME_FORMAT) for x in history.split(", ")]))
-        mytask = Task(name=name, period=period, history=history, comment=comment, category=category, thingID=thingID)
-        objectified_things.append(mytask)
+        print(thing)
+        new_task = Task(name=name, period=period, history=history, comment=comment, category=category, thingID=thingID)
+        objectified_things.append(new_task)
     newlist = TaskList(objectified_things)
-    conn.close()
     return newlist
