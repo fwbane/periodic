@@ -1,6 +1,6 @@
 import datetime
 from constants import TIME_FORMAT, ONE_DAY, ONE_HOUR, ONE_MINUTE, ONE_MONTH, ONE_WEEK, TWO_DAYS, DB_PATH
-from utils import format_period, format_time, update_task_to_DB
+from utils import format_period, format_time, update_task_to_DB, add_new_task_to_DB
 from uuid import uuid4
 
 class Task():
@@ -16,7 +16,9 @@ class Task():
         self.comment = comment
         self.category = category
         if thingID is None:
-            thingID = uuid4()
+            thingID = str(uuid4())
+            self.thingID = thingID
+            add_new_task_to_DB(self)
         self.thingID = thingID
         print(self.thingID, self.name, self.period, self.due, self.comment, self.category)
 
@@ -55,7 +57,7 @@ class Task():
         return self.due
     
     def print_due(self):
-        return format_time(self.get_due())
+        return format_time(self.due)
     
     def print_till_due(self):
         tilldue = self.due - datetime.datetime.now()

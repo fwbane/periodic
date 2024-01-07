@@ -133,3 +133,7 @@ app/db/
 app/env/
 app/winenv/
 
+
+app/db/*
+app/env/*
+app/winenv/*

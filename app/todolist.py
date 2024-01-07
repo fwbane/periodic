@@ -15,31 +15,34 @@ class TogaToDoList(toga.App):
         global tasks, list_table
 
         tasks = new_task_list_from_db()
+        self.tasks = tasks
 
 
         def on_row_double_click(widget, row):
             # Get the selected row data
-            selected_row_index = list_table.data.index(row)  #TODO: Should this functionality be broken out? 
-            selected_task = tasks.get_priority_list()[selected_row_index]
+            selected_row_index = self.list_table.data.index(row)  #TODO: Should this functionality be broken out? 
+            selected_task = self.tasks.get_priority_list()[selected_row_index]
             selected_task.check(datetime.datetime.now())
-            list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in tasks.get_priority_list()]
-            list_table.refresh()
+            self.list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in tasks.get_priority_list()]
+            self.list_table.refresh()
+            list_container.refresh()
             self.main_window.info_dialog(
                 f"Update {selected_task.name} successful", 
                 f"The task has been updated and is now due at {selected_task.due} ({selected_task.print_till_due()})")
 
-
+        self.list_source = self.tasks.source
         list_table = toga.Table(
             headings=["Task", "Due", "Period"],
             data=[
-                (t.name, t.print_till_due(), format_period(t.period)) for t in tasks.get_priority_list()
+                (task.name, task.print_till_due(), format_period(task.period)) for task in self.tasks.get_priority_list()
             ],
             on_activate=on_row_double_click  # This handles the double-click event
          )
+        self.list_table = list_table
 
         list_container = toga.OptionContainer(
             content=[
-                ("Table", list_table)
+                ("Table", self.list_table)
             ]
         )
 
@@ -82,8 +85,11 @@ class TogaToDoList(toga.App):
         self.main_window.show()
 
     def refresh_list_table(self):
-        list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in tasks.get_priority_list()]
-        list_table.rehint()
+        self.tasks.refresh_source()
+        self.list_source = self.tasks.source
+        self.list_table.data = self.list_source
+        self.list_table.refresh()
+
 
     def button_handler(self, widget):
         print("button press")
@@ -95,23 +101,38 @@ class TogaToDoList(toga.App):
         def on_dialog_submit(widget):
             # Get the input values from the dialog
             task_name = name_input.value
-            task_period_number = float(period_input.value)
+            task_period_number = period_input.value
             task_period_unit= period_dropdown.value
             mydict={'Hours': ONE_HOUR, 'Days':ONE_DAY, 'Weeks':ONE_WEEK, 'Months':ONE_MONTH}
-            task_period = int(task_period_number * mydict[task_period_unit])
-
             
             task_comment = comment_input.value
             task_category = category_input.value
+
+            if not task_name:
+                self.main_window.error_dialog('Error', 'Please enter a task name')
+                return
+            if not task_period_number: 
+                self.main_window.error_dialog('Error', 'Please enter a valid positive number for the period')
+                return
+            else: 
+                try:
+                    task_period_number = float(task_period_number)
+                    if task_period_number <= 0: 
+                        self.main_window.error_dialog('Error', 'Please enter a valid positive number for the period')
+                        return
+                except:
+                    self.main_window.error_dialog('Error', 'Could not convert period to float')
+                    return
+            task_period = int(task_period_number * mydict[task_period_unit])
 
             # Create the new task based on the input values
             print(f"task name: {task_name}, {task_period_number}, {task_period_unit}, {task_period}, {task_comment}, {task_category}")
             new_task = Task(name=task_name, period=task_period, comment=task_comment, category=task_category)
 
-            tasks.add(new_task)
+            self.tasks.add(new_task)
             print(f"new task added! {new_task.name}, {new_task.period}, {new_task.due}")
-            list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in tasks.get_priority_list()]
-            list_table.refresh()
+            self.list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in self.tasks.get_priority_list()]
+            self.list_table.refresh()
 
             # Close the dialog
             dialog.close()
@@ -143,13 +164,13 @@ class TogaToDoList(toga.App):
         dialog.show()
 
     async def remove_task(self, widget):
-        if list_table.selection is not None:
-            print(list_table.selection)
-            selected_row_index = list_table.data.index(list_table.selection)  #TODO: Should this functionality be broken out? 
-            sorted_tasks = tasks.get_priority_list()
+        if self.list_table.selection is not None:
+            print(self.list_table.selection)
+            selected_row_index = self.list_table.data.index(self.list_table.selection)  #TODO: Should this functionality be broken out? 
+            sorted_tasks = self.tasks.get_priority_list()
             selected_task = sorted_tasks[selected_row_index]
             if await self.main_window.question_dialog("Delete task", f"Are you sure you want to delete the task named {selected_task.name}?"):            
-                tasks.delete(selected_task)
+                self.tasks.delete(selected_task)
                 self.main_window.info_dialog("Task deleted", "task deleted")
             else:
                 self.main_window.info_dialog(
@@ -159,8 +180,8 @@ class TogaToDoList(toga.App):
             self.main_window.info_dialog(
                 "No task to delete", "You must select a task to delete"
             )
-        list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in tasks.get_priority_list()]
-        list_table.refresh()
+        self.list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in self.tasks.get_priority_list()]
+        self.list_table.refresh()
 
 def main():
     return TogaToDoList("ToDo", "org.enabwf.todolist")
