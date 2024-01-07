@@ -22,17 +22,17 @@ class TogaToDoList(toga.App):
             selected_row_index = list_table.data.index(row)  #TODO: Should this functionality be broken out? 
             selected_task = tasks.get_priority_list()[selected_row_index]
             selected_task.check(datetime.datetime.now())
-            list_table.data = [(task.name, task.due, task.period) for task in tasks.get_priority_list()]
+            list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in tasks.get_priority_list()]
             list_table.refresh()
             self.main_window.info_dialog(
                 f"Update {selected_task.name} successful", 
-                f"The task has been updated and is now due at {selected_task.due}")
+                f"The task has been updated and is now due at {selected_task.due} ({selected_task.print_till_due()})")
 
 
         list_table = toga.Table(
             headings=["Task", "Due", "Period"],
             data=[
-                (str(t.name), str(t.due), str(t.period)) for t in tasks.get_priority_list()
+                (t.name, t.print_till_due(), format_period(t.period)) for t in tasks.get_priority_list()
             ],
             on_activate=on_row_double_click  # This handles the double-click event
          )
@@ -82,7 +82,7 @@ class TogaToDoList(toga.App):
         self.main_window.show()
 
     def refresh_list_table(self):
-        list_table.data = [(task.name, task.due, task.period) for task in tasks.get_priority_list()]
+        list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in tasks.get_priority_list()]
         list_table.rehint()
 
     def button_handler(self, widget):
@@ -110,7 +110,7 @@ class TogaToDoList(toga.App):
 
             tasks.add(new_task)
             print(f"new task added! {new_task.name}, {new_task.period}, {new_task.due}")
-            list_table.data = [(task.name, task.due, task.period) for task in tasks.get_priority_list()]
+            list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in tasks.get_priority_list()]
             list_table.refresh()
 
             # Close the dialog
@@ -159,7 +159,7 @@ class TogaToDoList(toga.App):
             self.main_window.info_dialog(
                 "No task to delete", "You must select a task to delete"
             )
-        list_table.data = [(task.name, task.due, task.period) for task in tasks.get_priority_list()]
+        list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in tasks.get_priority_list()]
         list_table.refresh()
 
 def main():

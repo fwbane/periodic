@@ -56,6 +56,11 @@ class Task():
     
     def print_due(self):
         return format_time(self.get_due())
+    
+    def print_till_due(self):
+        tilldue = self.due - datetime.datetime.now()
+        sec = int(tilldue.total_seconds())
+        return format_period(sec)
 
     def set_due(self, new_due):
         self.due = new_due      
