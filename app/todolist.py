@@ -18,17 +18,71 @@ class TogaToDoList(toga.App):
         self.tasks = tasks
 
 
-        def on_row_double_click(widget, row):
+        async def on_row_double_click(widget, row):
+            def on_dialog_submit(widget):
+                selected_task.check(datetime.datetime.now())
+                self.list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in tasks.get_priority_list()]
+                self.list_table.refresh()
+                list_container.refresh()
+                dialog.close()
+                self.main_window.info_dialog(
+                    f"Update {selected_task.name} successful", 
+                    f"The task has been updated and is now due at {selected_task.due} ({selected_task.print_till_due()})")
+            def on_dialog_cancel(widget):
+                dialog.close()
+            def on_dialog_custom_time(widget):
+                def on_submit(widget):
+                    date = date_input.value
+                    time = time_input.value
+                    dt = datetime.datetime.combine(date, time)
+                    if dt > datetime.datetime.now():
+                        self.main_window.error_dialog('Error', 'Please enter time in the past')
+                        return                        
+                    selected_task.check(dt)
+                    dialog.close()
+                    self.main_window.info_dialog(
+                    f"Update {selected_task.name} successful", 
+                    f"The task has been updated and is now due at {selected_task.due} ({selected_task.print_till_due()})")
+
+                date_input = toga.DateInput()
+                time_input = toga.TimeInput()
+                submit_button = toga.Button('Submit', on_press=on_submit)
+
+                content = toga.Box(
+                    children=[
+                        toga.Label('Select Date:'),
+                        date_input,
+                        toga.Label('Select Time:'),
+                        time_input,
+                        submit_button
+                    ],
+                    style=Pack(direction=COLUMN)
+                )
+
+                dialog = toga.Window('Custom Time', size=(275, 150))
+                dialog.content = content
+                dialog.show()
+                
             # Get the selected row data
             selected_row_index = self.list_table.data.index(row)  #TODO: Should this functionality be broken out? 
             selected_task = self.tasks.get_priority_list()[selected_row_index]
-            selected_task.check(datetime.datetime.now())
-            self.list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in tasks.get_priority_list()]
-            self.list_table.refresh()
-            list_container.refresh()
-            self.main_window.info_dialog(
-                f"Update {selected_task.name} successful", 
-                f"The task has been updated and is now due at {selected_task.due} ({selected_task.print_till_due()})")
+            # Show a message dialog asking if the user wants to check the task now or set a custom time
+            text_label = toga.Label(f"Would you like to check the task named {selected_task.name} now?")
+            confirm_button = toga.Button('Confirm', on_press=on_dialog_submit)
+            cancel_button = toga.Button('Cancel', on_press=on_dialog_cancel)
+            custom_time_button = toga.Button('Custom Time', on_press=on_dialog_custom_time)
+            buttons = toga.Box(children=[confirm_button, cancel_button, custom_time_button], style=Pack(direction=ROW))
+            content = toga.Box(
+                children=[
+                    text_label,
+                    buttons,
+                ],
+                style=Pack(direction=COLUMN)  # Arrange children vertically
+            )
+            # Create and show the dialog
+            dialog = toga.Window('Check off task', size=(275, 150))
+            dialog.content = content
+            dialog.show()
 
         self.list_source = self.tasks.source
         list_table = toga.Table(
@@ -45,24 +99,6 @@ class TogaToDoList(toga.App):
                 ("Table", self.list_table)
             ]
         )
-
-        # right_content = toga.Box(style=Pack(direction=COLUMN))
-        # right_content.add(
-        #     toga.Button(
-        #         "FK", 
-        #         on_press=self.button_handler,
-        #         style=Pack(padding=20)
-        #     )
-        # )    
-
-        # right_container = toga.ScrollContainer()
-
-        # right_container.content = right_content
-
-        # split = toga.SplitContainer()
-
-        # split.content = [list_container, right_container]
-
 
         cmd1 = toga.Command(
             self.add_task_dialog,
@@ -109,7 +145,6 @@ class TogaToDoList(toga.App):
             task_name = name_input.value
             task_period_number = period_input.value
             task_period_unit= period_dropdown.value
-            mydict={'Hours': ONE_HOUR, 'Days':ONE_DAY, 'Weeks':ONE_WEEK, 'Months':ONE_MONTH}
             
             task_comment = comment_input.value
             task_category = category_input.value
@@ -129,7 +164,7 @@ class TogaToDoList(toga.App):
                 except:
                     self.main_window.error_dialog('Error', 'Could not convert period to float')
                     return
-            task_period = int(task_period_number * mydict[task_period_unit])
+            task_period = int(task_period_number * UNITSTR2SECS[task_period_unit])
 
             # Create the new task based on the input values
             print(f"task name: {task_name}, {task_period_number}, {task_period_unit}, {task_period}, {task_comment}, {task_category}")
@@ -143,27 +178,6 @@ class TogaToDoList(toga.App):
             # Close the dialog
             dialog.close()
 
-
-        # Create input widgets for the dialog
-        # name_input = toga.TextInput(placeholder='Enter Task Name')
-        # period_input = toga.TextInput(placeholder='7')
-        # period_units = ['Hours', 'Days', 'Weeks', 'Months']
-        # period_dropdown = toga.Selection(items=period_units)
-        # comment_input = toga.TextInput(placeholder='Enter Task Comment')
-        # category_input = toga.TextInput(placeholder='Enter Task Category')
-
-        # # Create a box layout for the dialog content
-        # content = toga.Box(
-        #     children=[
-        #         name_input,
-        #         period_input,
-        #         period_dropdown,
-        #         comment_input,
-        #         category_input,
-        #         toga.Button('Submit', on_press=on_dialog_submit)
-        #     ],
-        #     style=Pack(direction=COLUMN)  # Arrange children vertically
-        # )
         name_label = toga.Label('Task Name')
         name_input = toga.TextInput(placeholder='Enter Task Name')
         name_box = toga.Box(children=[name_label, name_input], style=Pack(direction=ROW))
@@ -224,21 +238,103 @@ class TogaToDoList(toga.App):
     async def edit_task(self, widget):
         if self.list_table.selection is not None:
             selected_task = self.get_selected_task(self.list_table.selection)
-            # TODO: Implement edit task dialog
-            
-            # if await self.main_window.question_dialog("Delete task", f"Are you sure you want to delete the task named {selected_task.name}?"):            
-            #     self.tasks.delete(selected_task)
-            #     self.main_window.info_dialog("Task deleted", "task deleted")
-            # else:
-            #     self.main_window.info_dialog(
-            #         "Delete task canceled", "OK I didn't delete anything"
-            #     )
+            original_name = selected_task.name
+            original_period = selected_task.period
+            original_comment = selected_task.comment
+            original_category = selected_task.category
+
+            def on_dialog_submit(widget):
+                # Get the input values from the dialog
+                task_name = name_input.value
+                task_period_number = period_input.value
+                task_period_unit = period_dropdown.value              
+                task_comment = comment_input.value
+                task_category = category_input.value
+
+                if not task_name:
+                    self.main_window.error_dialog('Error', 'Please enter a task name')
+                    return
+                if not task_period_number:
+                    self.main_window.error_dialog('Error', 'Please enter a valid positive number for the period')
+                    return
+                else:
+                    try:
+                        task_period_number = float(task_period_number)
+                        if task_period_number <= 0:
+                            self.main_window.error_dialog('Error', 'Please enter a valid positive number for the period')
+                            return
+                    except:
+                        self.main_window.error_dialog('Error', 'Could not convert period to float')
+                        return
+                task_period = int(task_period_number * UNITSTR2SECS[task_period_unit])
+
+                # Update the selected task with the edited values
+                if task_name != original_name:
+                    selected_task.name = task_name
+                if task_period != original_period:
+                    selected_task.period = task_period
+                if task_comment != original_comment:
+                    selected_task.comment = task_comment
+                if task_category != original_category:
+                    selected_task.category = task_category
+                update_task_to_DB(selected_task)
+
+                self.list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in
+                                        self.tasks.get_priority_list()]
+                self.list_table.refresh()
+
+                # Close the dialog
+                dialog.close()
+
+            name_label = toga.Label('Task Name')
+            name_input = toga.TextInput(placeholder='Enter Task Name', value=selected_task.name)
+            name_box = toga.Box(children=[name_label, name_input], style=Pack(direction=ROW))
+
+            period_label = toga.Label('Period')
+            selected_task_period_str = format_period(selected_task.period)
+            selected_task_period_number = selected_task_period_str.split()[0]
+            selected_task_period_first_char = selected_task_period_str.split()[1][0].upper()
+            if selected_task_period_first_char == 'H':
+                selected_task_period_unit = 'Hours'
+            elif selected_task_period_first_char == 'D':
+                selected_task_period_unit = 'Days'
+            elif selected_task_period_first_char == 'W':
+                selected_task_period_unit = 'Weeks'
+            elif selected_task_period_first_char == 'M':
+                selected_task_period_unit = 'Months'
+
+            period_input = toga.TextInput(placeholder='7', value=selected_task_period_number)
+            period_units = ['Hours', 'Days', 'Weeks', 'Months']
+            period_dropdown = toga.Selection(items=period_units, value=selected_task_period_unit)
+            period_box = toga.Box(children=[period_label, period_input, period_dropdown], style=Pack(direction=ROW))
+
+            comment_label = toga.Label('Comment')
+            comment_input = toga.TextInput(placeholder='Enter Task Comment', value=selected_task.comment)
+            comment_box = toga.Box(children=[comment_label, comment_input], style=Pack(direction=ROW))
+
+            category_label = toga.Label('Category')
+            category_input = toga.TextInput(placeholder='Enter Task Category', value=selected_task.category)
+            category_box = toga.Box(children=[category_label, category_input], style=Pack(direction=ROW))
+
+            # Create a box layout for the dialog content
+            content = toga.Box(
+                children=[
+                    name_box,
+                    period_box,
+                    comment_box,
+                    category_box,
+                    toga.Button('Submit', on_press=on_dialog_submit)
+                ],
+                style=Pack(direction=COLUMN)  # Arrange children vertically
+            )
+            # Create and show the dialog
+            dialog = toga.Window('Edit Task', size=(275, 150))
+            dialog.content = content
+            dialog.show()
         else:
             self.main_window.info_dialog(
-                "No task to delete", "You must select a task to delete"
-            )
-        self.list_table.data = [(task.name, task.print_till_due(), format_period(task.period)) for task in self.tasks.get_priority_list()]
-        self.list_table.refresh()        
+                "No task to edit", "You must select a task to edit"
+            )    
 
 def main():
     return TogaToDoList("ToDo", "org.enabwf.todolist")
