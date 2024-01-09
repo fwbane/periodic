@@ -12,7 +12,11 @@ class Task():
         self.name = name
         self.period = period
         self.history=history
-        self.due =  history[-1] + datetime.timedelta(seconds=period)
+        if len(history) == 0:
+            self.due = datetime.datetime.now() + datetime.timedelta(seconds=period)
+        else:
+            self.due =  history[-1] + datetime.timedelta(seconds=period)
+        self.history = sorted(self.history)
         self.comment = comment
         self.category = category
         if thingID is None:
@@ -36,7 +40,8 @@ class Task():
                 self.history.append(time)
             except:
                 print("Could not parse time of {}".format(time))
-        latest = time
+        self.history = sorted(self.history)
+        latest = self.history[-1]
         newdue = latest + datetime.timedelta(seconds=self.period)
         newdue = newdue.replace(microsecond=0)
         if newdue > self.due:
