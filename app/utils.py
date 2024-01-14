@@ -134,6 +134,7 @@ def get_all_tasks_DB(path=DB_PATH):
 
 def check_DB(path=DB_PATH):
     # Check if there is a valid database at the given path, and if not, create one.
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     if not os.path.exists(path):
         try:
             conn = sqlite3.connect(path)
