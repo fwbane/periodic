@@ -4,7 +4,7 @@ from toga.style import Pack
 import datetime
 from constants import *
 from utils import *
-
+from sys import exit
 from Task import Task
 from TaskList import new_task_list_from_db
 
@@ -13,6 +13,8 @@ class TogaToDoList(toga.App):
         # Create the main window
         self.main_window = toga.MainWindow()
         global tasks, list_table
+        if not check_DB():
+            exit(1)
 
         tasks = new_task_list_from_db()
         self.tasks = tasks

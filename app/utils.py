@@ -1,6 +1,8 @@
 import sqlite3
 import datetime
 from constants import TIME_FORMAT, ONE_DAY, ONE_HOUR, ONE_MINUTE, ONE_WEEK, ONE_MONTH, DB_PATH
+import os
+
 
 def format_time(time):
     if isinstance(time, datetime.datetime):
@@ -87,8 +89,8 @@ def add_new_task_to_DB(thing, path=DB_PATH):
         )
         conn.commit()
     except sqlite3.Error as e:
-        raise
-    finally:
+        raise e
+    finally: 
         # Close the database connection
         conn.close()
 
@@ -129,3 +131,38 @@ def get_all_tasks_DB(path=DB_PATH):
         thinglist.append([thingID,name,period,history,comment,category])
     conn.close()
     return thinglist
+
+def check_DB(path=DB_PATH):
+    # Check if there is a valid database at the given path, and if not, create one.
+    if not os.path.exists(path):
+        try:
+            conn = sqlite3.connect(path)
+            c = conn.cursor()
+            c.execute('''CREATE TABLE IF NOT EXISTS things (id string PRIMARY KEY, name, period, history, comment, category)''')
+            conn.commit()
+            conn.close()
+        except:
+            # Otherwise raise an error and exit with status code 1
+            print("Database {} is not valid!".format(path))
+            return False
+    else:
+        # check if the database is valid
+        try:
+            conn = sqlite3.connect(path)
+            c = conn.cursor()
+            c.execute("SELECT * FROM things LIMIT 1")
+        except sqlite3.DatabaseError:
+            # If the table 'things' does not exist or is not valid, recreate it
+            c.execute('''DROP TABLE IF EXISTS things''')
+            c.execute('''CREATE TABLE IF NOT EXISTS things (id string PRIMARY KEY, name, period, history, comment, category)''')
+            conn.commit()
+            conn.close()
+        except:
+            # Otherwise raise an error and exit with status code 1
+            print("Database {} is not valid!".format(path))
+            return False
+    return True
+
+        
+        
+        
