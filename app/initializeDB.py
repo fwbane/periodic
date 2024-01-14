@@ -34,4 +34,5 @@ def save_db(things, path=DB_PATH): # TODO: UPDATE instead of INSERT
     conn.commit()
     conn.close()
 
-save_db(mytasks)
+for path in DEV_DB_PATH, TEST_DB_PATH:
+    save_db(mytasks, path=path)

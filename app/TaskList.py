@@ -3,12 +3,16 @@ import heapq
 from constants import TIME_FORMAT, ONE_DAY, ONE_HOUR, ONE_MINUTE, ONE_MONTH, ONE_WEEK, TWO_DAYS, DB_PATH
 from utils import format_period, update_many_tasks_to_DB, get_all_tasks_DB, format_time, add_new_task_to_DB, remove_task_from_DB
 from Task import Task
+from toga.sources import ListSource
+
 
 
 class TaskList():
     def __init__(self, taskList=[]):
         self.tasks = taskList
         self.dict = {task.thingID:task for task in taskList}
+        self.source = ListSource(accessors = ["Task", "Due", "Period"],
+                             data=[(task.name, task.print_till_due(), format_period(task.period)) for task in self.get_priority_list()])
 
     def __iter__(self):
         yield from self.tasks
@@ -37,6 +41,16 @@ class TaskList():
             else:
                 print("task not found!")
                 return None
+    
+    def set_source_data(self, newdata):
+        self.source = ListSource(accessors = ["Task", "Due", "Period"],
+                                 data = newdata
+                                 )
+    
+    def refresh_source(self):
+        self.source = ListSource(accessors = ["Task", "Due", "Period"],
+                             data=[(task.name, task.print_till_due(), format_period(task.period)) for task in self.get_priority_list()])
+
     
     def show(self, ):
         heap = []
@@ -69,7 +83,6 @@ class TaskList():
         thingID = new_task.thingID
         self.tasks.append(new_task)
         self.dict[thingID] = new_task
-        add_new_task_to_DB(new_task)
 
 
     def check(self, query, time=datetime.datetime.now(), *otherTimes): 
@@ -100,6 +113,8 @@ class TaskList():
 
     def update_to_DB(self):
         update_many_tasks_to_DB(self.get_all(), DB_PATH)
+    
+
 
 def new_task_list_from_db(path=DB_PATH): 
     thinglist = get_all_tasks_DB(path)

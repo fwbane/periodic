@@ -18,14 +18,14 @@ def format_period(period):
     return_str = ""
     if period < 0:
         return "OVERDUE"
-    elif period > ONE_MONTH:
+    elif period >= ONE_MONTH:
         months = int(period/ONE_MONTH)
         days = int((period%ONE_MONTH)/ONE_DAY)
         return_str += format_plural(months, "month")
         if days > 0:
             return_str += ", {}".format(format_plural(days, "day"))
         return return_str
-    elif period > ONE_DAY:
+    elif period >= ONE_DAY:
         days = int(period/ONE_DAY)
         hours = int((period%ONE_DAY)/ONE_HOUR)
         return_str += format_plural(days, "day")
@@ -69,14 +69,37 @@ def update_many_tasks_to_DB(things, path=DB_PATH):
         conn.commit()
     conn.close()
 
+
 def add_new_task_to_DB(thing, path=DB_PATH): 
     db = path
     conn = sqlite3.connect(db)
     c = conn.cursor()
-    mycommand = "INSERT INTO things VALUES ('{}', '{}', {}, '{}', '{}', '{}');".format(thing.thingID, thing.name, thing.period, ", ".join([x.strftime(TIME_FORMAT) for x in thing.history]), thing.comment, thing.category)
-    c.execute(mycommand)
-    conn.commit()
-    conn.close()
+    query = "INSERT INTO things (id, name, period, history, comment, category) VALUES (?, ?, ?, ?, ?, ?)"
+    try:
+        c.execute(query, (
+            thing.thingID, 
+            thing.name, 
+            thing.period, 
+            ", ".join([x.strftime(TIME_FORMAT) for x in thing.history]), 
+            thing.comment, 
+            thing.category
+            )
+        )
+        conn.commit()
+    except sqlite3.Error as e:
+        raise
+    finally:
+        # Close the database connection
+        conn.close()
+
+# def add_new_task_to_DB(thing, path=DB_PATH): 
+#     db = path
+#     conn = sqlite3.connect(db)
+#     c = conn.cursor()
+#     mycommand = "INSERT INTO things VALUES ('{}', '{}', {}, '{}', '{}', '{}');".format(thing.thingID, thing.name, thing.period, ", ".join([x.strftime(TIME_FORMAT) for x in thing.history]), thing.comment, thing.category)
+#     c.execute(mycommand)
+#     conn.commit()
+#     conn.close()
 
 def remove_task_from_DB(thingID, path=DB_PATH):
     db = path

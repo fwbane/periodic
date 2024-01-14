@@ -1,6 +1,6 @@
 import datetime
 from constants import TIME_FORMAT, ONE_DAY, ONE_HOUR, ONE_MINUTE, ONE_MONTH, ONE_WEEK, TWO_DAYS, DB_PATH
-from utils import format_period, format_time, update_task_to_DB
+from utils import format_period, format_time, update_task_to_DB, add_new_task_to_DB
 from uuid import uuid4
 
 class Task():
@@ -12,11 +12,17 @@ class Task():
         self.name = name
         self.period = period
         self.history=history
-        self.due =  history[-1] + datetime.timedelta(seconds=period)
+        if len(history) == 0:
+            self.due = datetime.datetime.now() + datetime.timedelta(seconds=period)
+        else:
+            self.due =  history[-1] + datetime.timedelta(seconds=period)
+        self.history = sorted(self.history)
         self.comment = comment
         self.category = category
         if thingID is None:
-            thingID = uuid4()
+            thingID = str(uuid4())
+            self.thingID = thingID
+            add_new_task_to_DB(self)
         self.thingID = thingID
         print(self.thingID, self.name, self.period, self.due, self.comment, self.category)
 
@@ -34,7 +40,8 @@ class Task():
                 self.history.append(time)
             except:
                 print("Could not parse time of {}".format(time))
-        latest = time
+        self.history = sorted(self.history)
+        latest = self.history[-1]
         newdue = latest + datetime.timedelta(seconds=self.period)
         newdue = newdue.replace(microsecond=0)
         if newdue > self.due:
@@ -55,7 +62,7 @@ class Task():
         return self.due
     
     def print_due(self):
-        return format_time(self.get_due())
+        return format_time(self.due)
     
     def print_till_due(self):
         tilldue = self.due - datetime.datetime.now()
