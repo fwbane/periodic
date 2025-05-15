@@ -116,13 +116,14 @@ class TaskList():
     
 
 
-def new_task_list_from_db(path=DB_PATH): 
+def new_task_list_from_db(path): 
     thinglist = get_all_tasks_DB(path)
     objectified_things = []
     for thing in thinglist:
         thingID, name, period, history, comment, category = thing
         print(thing)
         new_task = Task(name=name, period=period, history=history, comment=comment, category=category, thingID=thingID)
+        add_new_task_to_DB(new_task)
         objectified_things.append(new_task)
     newlist = TaskList(objectified_things)
     return newlist

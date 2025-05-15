@@ -11,5 +11,5 @@ TODO:
 10. Validate all input types (lol) 
 11. Add typing to everything ^_^
 12. Change DB save call to safe, sanitized version 
-13. Change list_container from option container # list_container = toga.OptionContainer(   ## NOT DONE, LAYOUT IS WORSE ##
+13. Change list_container from option container ## NOT DONE, LAYOUT IS WORSE ##
 14. Add edit task dialog  ##DONE##
