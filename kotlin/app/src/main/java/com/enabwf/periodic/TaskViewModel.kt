@@ -24,6 +24,10 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         repository.update(task)
     }
 
+    fun deleteTaskWithHistory(task: Task) = viewModelScope.launch {
+        repository.deleteTaskAndHistory(task)
+    }
+
     fun insertCompletionRecord(record: CompletionRecord) = viewModelScope.launch {
         repository.insertCompletionRecord(record)
     }

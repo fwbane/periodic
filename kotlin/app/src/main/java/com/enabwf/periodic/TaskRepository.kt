@@ -13,6 +13,10 @@ class TaskRepository(private val taskDao: TaskDao) {
         taskDao.update(task)
     }
 
+    suspend fun deleteTaskAndHistory(task: Task) {
+        taskDao.deleteCompletionRecordsForTask(task.id)
+        taskDao.delete(task) // or taskDao.deleteTaskById(task.id)
+    }
     suspend fun insertCompletionRecord(record: CompletionRecord) {
         taskDao.insertCompletionRecord(record)
     }

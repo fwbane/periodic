@@ -21,9 +21,16 @@ interface TaskDao {
 
     @Delete
     suspend fun delete(task: Task): Int
+
+    @Query("DELETE FROM task_table WHERE id = :taskId") // Alternative delete by ID
+    suspend fun deleteTaskById(taskId: Int): Int
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCompletionRecord(record: CompletionRecord): Long
 
     @Query("SELECT * FROM completion_table WHERE taskId = :taskId ORDER BY completionTime DESC")
     fun getCompletionRecordsForTask(taskId: Int): LiveData<List<CompletionRecord>>
+
+    @Query("DELETE FROM completion_table WHERE taskId = :taskId") // New: Delete completion records for a task
+    suspend fun deleteCompletionRecordsForTask(taskId: Int): Int
 }
