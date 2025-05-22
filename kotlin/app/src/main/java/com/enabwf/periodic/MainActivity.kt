@@ -22,6 +22,8 @@ import androidx.appcompat.app.AlertDialog // Ensure this is androidx.appcompat.a
 import java.text.SimpleDateFormat // For date formatting
 import java.util.Locale
 import java.util.concurrent.TimeUnit // For actual period calculation
+import android.app.DatePickerDialog // For Date Picker
+import android.app.TimePickerDialog // For Time Picker
 
 class MainActivity : AppCompatActivity() {
 
@@ -59,7 +61,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onItemClick(view: View, position: Int) {
                     if (position >= 0 && position < taskListAdapter.itemCount) { // Check bounds
                         val task = taskListAdapter.getItem(position)
-                        markTaskDone(task)
+                        showMarkDoneOptionsDialog(task)
                     }
                 }
 
@@ -184,15 +186,15 @@ class MainActivity : AppCompatActivity() {
         return unitMillis
     }
 
-    private fun markTaskDone(task: Task) {
-        val currentTime = System.currentTimeMillis()
-        val completionTimeDate = Date(currentTime)
+    private fun markTaskDone(task: Task, completionTimeMillis: Long) {
+//        val currentTime = System.currentTimeMillis()
+        val completionTimeDate = Date(completionTimeMillis)
 
         val completionRecord = CompletionRecord(taskId = task.id, completionTime = completionTimeDate)
         taskViewModel.insertCompletionRecord(completionRecord)
 
         // Calculate next due date using the task's stored periodInMillis
-        val nextDueDateMillis = currentTime + task.periodInMillis
+        val nextDueDateMillis = completionTimeMillis  + task.periodInMillis
         val nextDueDate = Date(nextDueDateMillis)
 
         val updatedTask = task.copy(lastDone = completionTimeDate, dueDate = nextDueDate)
@@ -200,6 +202,64 @@ class MainActivity : AppCompatActivity() {
 
         val dateFormat = android.text.format.DateFormat.getDateFormat(this) // Or getMediumDateFormat
         Toast.makeText(this, "${task.name} done. Next due: ${dateFormat.format(nextDueDate)}", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showMarkDoneOptionsDialog(task: Task) {
+        val options = arrayOf("Mark Done Now", "Mark with Custom Time")
+        AlertDialog.Builder(this)
+            .setTitle("Complete Task: ${task.name}")
+            .setItems(options) { dialog, which ->
+                when (which) {
+                    0 -> { // Mark Done Now
+                        markTaskDone(task, System.currentTimeMillis())
+                    }
+                    1 -> { // Mark with Custom Time
+                        showCustomTimePickerForCompletion(task)
+                    }
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showCustomTimePickerForCompletion(task: Task) {
+        val calendar = Calendar.getInstance() // Used to get current date/time and to set selected values
+
+        // Date Picker Dialog
+        val datePickerDialog = DatePickerDialog(
+            this,
+            { _, year, monthOfYear, dayOfMonth ->
+                // Date selected, now show Time Picker
+                calendar.set(Calendar.YEAR, year)
+                calendar.set(Calendar.MONTH, monthOfYear)
+                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+
+                // Time Picker Dialog
+                val timePickerDialog = TimePickerDialog(
+                    this,
+                    { _, hourOfDay, minute ->
+                        calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                        calendar.set(Calendar.MINUTE, minute)
+                        calendar.set(Calendar.SECOND, 0) // Optional: zero out seconds
+                        calendar.set(Calendar.MILLISECOND, 0) // Optional: zero out milliseconds
+
+                        // Date and Time selected, mark task done
+                        markTaskDone(task, calendar.timeInMillis)
+                    },
+                    calendar.get(Calendar.HOUR_OF_DAY),
+                    calendar.get(Calendar.MINUTE),
+                    android.text.format.DateFormat.is24HourFormat(this) // Use device's 24-hour setting
+                )
+                timePickerDialog.show()
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
+        // Optional: Prevent selecting future dates for completion time
+        datePickerDialog.datePicker.maxDate = System.currentTimeMillis()
+        datePickerDialog.show()
     }
 
     private fun showEditTaskDialog(task: Task) {
