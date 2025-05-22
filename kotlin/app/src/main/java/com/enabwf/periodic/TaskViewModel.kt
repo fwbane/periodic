@@ -24,9 +24,20 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         repository.update(task)
     }
 
-    fun deleteTaskWithHistory(task: Task) = viewModelScope.launch {
-        repository.deleteTaskAndHistory(task)
+//    fun deleteTaskWithHistory(task: Task) = viewModelScope.launch {
+//        repository.deleteTaskAndHistory(task)
+//    }
+
+    // Renamed and updated: Calls repository to mark task as inactive
+    fun markTaskAsInactive(task: Task) = viewModelScope.launch {
+        repository.markTaskAsInactive(task)
     }
+
+    // Optional: For future "restore task" feature
+    fun markTaskAsActive(task: Task) = viewModelScope.launch {
+        repository.markTaskAsActive(task)
+    }
+
 
     fun insertCompletionRecord(record: CompletionRecord) = viewModelScope.launch {
         repository.insertCompletionRecord(record)

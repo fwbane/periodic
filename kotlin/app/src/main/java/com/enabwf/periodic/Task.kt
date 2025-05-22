@@ -11,5 +11,6 @@ data class Task(
     var lastDone: Date? = null, // Last time task was completed
     var dueDate: Date? = null,
     val comments: String? = null, // field for comments
-    val tags: List<String> = emptyList() // field for tags
+    val tags: List<String> = emptyList(), // field for tags
+    val isActive: Boolean = true
 )

@@ -258,7 +258,7 @@ class MainActivity : AppCompatActivity() {
             .setView(dialogView)
             .setPositiveButton("Save", null) // We'll handle click manually for validation
             .setNegativeButton("Cancel", null)
-            .setNeutralButton("Delete", null) // For Delete action
+            .setNeutralButton("Archive", null) // For Archive action
             .create()
 
         dialog.setOnShowListener {
@@ -304,13 +304,13 @@ class MainActivity : AppCompatActivity() {
                 dialog.dismiss()
             }
 
-            // DELETE Button
+            // DELETE Button (Now "Deactivate")
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
-                AlertDialog.Builder(this)
-                    .setTitle("Delete Task")
-                    .setMessage("Are you sure you want to delete '${task.name}' and all its completion history?")
-                    .setPositiveButton("Delete") { _, _ ->
-                        taskViewModel.deleteTaskWithHistory(task)
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Archive")
+                    .setMessage("Are you sure you want to archive '${task.name}'?")
+                    .setPositiveButton("Archive") { _, _ ->
+                        taskViewModel.markTaskAsInactive(task)
                         dialog.dismiss()
                     }
                     .setNegativeButton("Cancel", null)

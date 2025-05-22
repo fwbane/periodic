@@ -10,14 +10,22 @@ import androidx.room.Update
 import androidx.room.Delete
 @Dao
 interface TaskDao {
-    @Query("SELECT * FROM task_table ORDER BY dueDate ASC, name ASC")
-    fun getAllTasks(): LiveData<List<Task>>
+    @Query("SELECT * FROM task_table WHERE isActive = 1 ORDER BY dueDate ASC, name ASC")
+    fun getAllActiveTasks(): LiveData<List<Task>>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(task: Task): Long
 
     @Update
     suspend fun update(task: Task): Int
+
+    // New: Mark a task as inactive (soft delete)
+    @Query("UPDATE task_table SET isActive = 0 WHERE id = :taskId")
+    suspend fun markAsInactive(taskId: Int): Int
+
+    // Optional: New method to mark a task as active again (for future restore functionality)
+    @Query("UPDATE task_table SET isActive = 1 WHERE id = :taskId")
+    suspend fun markAsActive(taskId: Int): Int
 
     @Delete
     suspend fun delete(task: Task): Int
