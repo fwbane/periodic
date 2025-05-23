@@ -38,12 +38,19 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         repository.markTaskAsActive(task)
     }
 
-
     fun insertCompletionRecord(record: CompletionRecord) = viewModelScope.launch {
         repository.insertCompletionRecord(record)
     }
 
     fun getCompletionRecordsForTask(taskId: Int): LiveData<List<CompletionRecord>> {
         return repository.getCompletionRecordsForTask(taskId)
+    }
+
+    suspend fun doesTaskNameExist(name: String): Boolean {
+        return repository.doesTaskNameExist(name)
+    }
+
+    suspend fun doesOtherTaskNameExist(name: String, taskIdToExclude: Int): Boolean {
+        return repository.doesOtherTaskNameExist(name, taskIdToExclude)
     }
 }

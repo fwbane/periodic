@@ -24,6 +24,8 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit // For actual period calculation
 import android.app.DatePickerDialog // For Date Picker
 import android.app.TimePickerDialog // For Time Picker
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -109,50 +111,73 @@ class MainActivity : AppCompatActivity() {
         periodUnitSpinner.adapter = unitAdapter
         periodUnitSpinner.setSelection(1) // Default to "Days"
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Add New Task")
             .setView(dialogView)
-            .setPositiveButton("Add") { _, _ ->
-                val taskName = taskNameEditText.text.toString()
+            .setPositiveButton("Add", null) // Set to null, we'll handle click manually
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        dialog.setOnShowListener {
+            val positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            positiveButton.setOnClickListener {
+                val taskName = taskNameEditText.text.toString().trim() // Ensure it's trimmed
                 val periodValueStr = periodValueEditText.text.toString()
                 val comments = commentsEditText.text.toString().trim()
                 val tagsString = tagsEditText.text.toString().trim()
 
-                if (taskName.isNotBlank() && periodValueStr.isNotBlank()) {
-                    val periodValue = periodValueStr.toDoubleOrNull()
-                    if (periodValue == null || periodValue <= 0) {
-                        Toast.makeText(this, "Please enter a valid period value.", Toast.LENGTH_SHORT).show()
-                        return@setPositiveButton
+                if (taskName.isBlank()) { // Basic check for blank name
+                    Toast.makeText(this, "Task name cannot be empty", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener // Keep dialog open
+                }
+                if (periodValueStr.isBlank()) {
+                    Toast.makeText(this, "Period value cannot be empty", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+
+                // Launch a coroutine to check for name existence (suspend function)
+                lifecycleScope.launch {
+                    if (taskViewModel.doesTaskNameExist(taskName)) {
+                        Toast.makeText(this@MainActivity, "A task with this name already exists. Please use a different name.", Toast.LENGTH_LONG).show()
+                        // Do not dismiss the dialog, let the user correct the name
+                    } else {
+                        // Name does not exist, proceed to create and insert the task
+                        val periodValue = periodValueStr.toDoubleOrNull()
+                        if (periodValue == null || periodValue <= 0) {
+                            Toast.makeText(this@MainActivity, "Please enter a valid period value.", Toast.LENGTH_SHORT).show()
+                            return@launch // Exit coroutine, keep dialog open
+                        }
+
+                        val selectedUnit = periodUnitSpinner.selectedItem.toString()
+                        val periodInMillis = getCustomPeriodInMillis(periodValue, selectedUnit)
+
+                        if (periodInMillis <= 0) {
+                            Toast.makeText(this@MainActivity, "Invalid period calculation.", Toast.LENGTH_SHORT).show()
+                            return@launch // Exit coroutine, keep dialog open
+                        }
+
+                        val tagsList = tagsString.split(',')
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+
+                        val currentTime = System.currentTimeMillis()
+                        val newTask = Task(
+                            name = taskName,
+                            periodInMillis = periodInMillis,
+                            lastDone = null,
+                            dueDate = Date(currentTime),
+                            comments = comments.ifEmpty { null },
+                            tags = tagsList,
+                            isActive = true // Explicitly set, though it's the default
+                        )
+                        taskViewModel.insert(newTask)
+                        dialog.dismiss() // Dismiss dialog only on successful addition
                     }
-
-                    val selectedUnit = periodUnitSpinner.selectedItem.toString()
-                    val periodInMillis = getCustomPeriodInMillis(periodValue, selectedUnit)
-
-                    if (periodInMillis <= 0) {
-                        Toast.makeText(this, "Invalid period calculation.", Toast.LENGTH_SHORT).show()
-                        return@setPositiveButton
-                    }
-
-                    val tagsList = tagsString.split(',')
-                        .map { it.trim() }
-                        .filter { it.isNotEmpty() }
-
-                    val currentTime = System.currentTimeMillis()
-                    val newTask = Task(
-                        name = taskName,
-                        periodInMillis = periodInMillis,
-                        lastDone = null,
-                        dueDate = Date(currentTime), // Due immediately by default
-                        comments = comments.ifEmpty { null },
-                        tags = tagsList
-                    )
-                    taskViewModel.insert(newTask)
-                } else {
-                    Toast.makeText(this, "Task name and period value cannot be empty", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
+        dialog.show()
     }
 
     // Removed old getPeriodInMillis function
@@ -301,8 +326,8 @@ class MainActivity : AppCompatActivity() {
 
         taskViewModel.getCompletionRecordsForTask(task.id).observe(this, Observer { records ->
             records?.let {
-                // Show last 10 or make it configurable. For now, all.
-                historyAdapter.submitList(it.take(10)) // Or it for all records
+                // Show last 5 or make it configurable.
+                historyAdapter.submitList(it.take(5)) // Or it for all records
 
                 // Calculate and Display Actual Period
                 if (it.size >= 2) {
@@ -339,32 +364,42 @@ class MainActivity : AppCompatActivity() {
                     return@setOnClickListener
                 }
 
-                val newSelectedUnit = periodUnitSpinner.selectedItem.toString()
-                val newPeriodInMillis = getCustomPeriodInMillis(newPeriodValue, newSelectedUnit)
+                lifecycleScope.launch {
+                    // Check for duplicate name only if the name has changed
+                    if (newName.equals(task.name, ignoreCase = true) || !taskViewModel.doesOtherTaskNameExist(newName, task.id)) {
+                        // Name is unique or hasn't changed, proceed with saving
+                        val newSelectedUnit = periodUnitSpinner.selectedItem.toString()
+                        val newPeriodInMillis = getCustomPeriodInMillis(newPeriodValue, newSelectedUnit)
 
-                val newTagsList = newTagsStr.split(',').map { tg -> tg.trim() }.filter { tg -> tg.isNotEmpty() }
+                        val newTagsList = newTagsStr.split(',').map { tg -> tg.trim() }.filter { tg -> tg.isNotEmpty() }
 
-                // Due Date Recalculation Logic:
-                // If period changed, new due date is (lastDone or (currentDueDate - oldPeriod)) + newPeriod
-                val newDueDate: Date = if (newPeriodInMillis != task.periodInMillis) {
-                    val baseTime = task.lastDone?.time ?: (task.dueDate!!.time - task.periodInMillis)
-                    Date(baseTime + newPeriodInMillis)
-                } else {
-                    task.dueDate!! // Keep original if period didn't change
+                        // Due Date Recalculation Logic:
+                        // If period changed, new due date is anchored to (lastDone or (currentDueDate - oldPeriod)) + newPeriod
+                        val newDueDate: Date = if (newPeriodInMillis != task.periodInMillis) {
+                            val baseTimeForDueDateCalc = task.lastDone?.time ?: (task.dueDate!!.time - task.periodInMillis) // Original start of cycle
+                            Date(baseTimeForDueDateCalc + newPeriodInMillis)
+                        } else {
+                            task.dueDate!! // Keep original if period didn't change
+                        }
+
+                        val updatedTask = task.copy(
+                            name = newName,
+                            periodInMillis = newPeriodInMillis,
+                            tags = newTagsList,
+                            comments = newComments.ifEmpty { null },
+                            dueDate = newDueDate,
+                            isActive = task.isActive // Preserve current active status
+                        )
+                        taskViewModel.update(updatedTask)
+                        dialog.dismiss()
+                    } else {
+                        // Name conflicts with another existing task
+                        Toast.makeText(this@MainActivity, "Another task with this name already exists. Please use a different name.", Toast.LENGTH_LONG).show()
+                    }
                 }
-
-                val updatedTask = task.copy(
-                    name = newName,
-                    periodInMillis = newPeriodInMillis,
-                    tags = newTagsList,
-                    comments = newComments.ifEmpty { null },
-                    dueDate = newDueDate // Updated due date
-                )
-                taskViewModel.update(updatedTask)
-                dialog.dismiss()
             }
 
-            // DELETE Button (Now "Deactivate")
+            // DELETE Button (Now "Archive")
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle("Archive")

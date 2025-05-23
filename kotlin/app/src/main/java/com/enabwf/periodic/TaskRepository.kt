@@ -36,4 +36,12 @@ class TaskRepository(private val taskDao: TaskDao) {
     fun getCompletionRecordsForTask(taskId: Int): LiveData<List<CompletionRecord>> {
         return taskDao.getCompletionRecordsForTask(taskId)
     }
+
+    suspend fun doesTaskNameExist(name: String): Boolean {
+        return taskDao.doesTaskNameExist(name)
+    }
+
+    suspend fun doesOtherTaskNameExist(name: String, taskIdToExclude: Int): Boolean {
+        return taskDao.doesOtherTaskNameExist(name, taskIdToExclude)
+    }
 }

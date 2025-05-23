@@ -41,4 +41,11 @@ interface TaskDao {
 
     @Query("DELETE FROM completion_table WHERE taskId = :taskId") // New: Delete completion records for a task
     suspend fun deleteCompletionRecordsForTask(taskId: Int): Int
+
+    // New: Check if a task name exists (case-insensitive)
+    @Query("SELECT EXISTS(SELECT 1 FROM task_table WHERE LOWER(name) = LOWER(:name) LIMIT 1)")
+    suspend fun doesTaskNameExist(name: String): Boolean
+
+    @Query("SELECT EXISTS(SELECT 1 FROM task_table WHERE LOWER(name) = LOWER(:name) AND id != :taskIdToExclude LIMIT 1)")
+    suspend fun doesOtherTaskNameExist(name: String, taskIdToExclude: Int): Boolean
 }
