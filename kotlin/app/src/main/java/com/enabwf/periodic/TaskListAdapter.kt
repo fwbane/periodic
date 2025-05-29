@@ -27,6 +27,7 @@ class TaskListAdapter(private var tasks: List<Task>) : RecyclerView.Adapter<Task
         return TaskViewHolder(view)
     }
 
+//    @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: TaskViewHolder, position: Int) {
         val task = tasks[position]
         holder.taskName.text = task.name
@@ -41,7 +42,11 @@ class TaskListAdapter(private var tasks: List<Task>) : RecyclerView.Adapter<Task
 
         if (task.dueDate != null) {
             val dateFormat = android.text.format.DateFormat.getMediumDateFormat(holder.itemView.context)
-            holder.taskDueDate.text = "Due: ${dateFormat.format(task.dueDate!!)}"
+            holder.taskDueDate.text =
+                holder.itemView.context.getString(
+                    R.string.due_date_display,
+                    dateFormat.format(task.dueDate!!)
+                )
 
             if (task.dueDate!!.before(currentTime) && task.lastDone?.before(task.dueDate!!) != false) { // Task is overdue
                 holder.taskDueDate.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.red_overdue))
@@ -49,7 +54,7 @@ class TaskListAdapter(private var tasks: List<Task>) : RecyclerView.Adapter<Task
                 holder.taskDueDate.setTextColor(defaultTextColor)
             }
         } else {
-            holder.taskDueDate.text = "Due date not set"
+            holder.taskDueDate.text = holder.itemView.context.getString(R.string.due_date_not_set)
             holder.taskDueDate.setTextColor(defaultTextColor) // Set to default if no due date
         }
         val commentsPreview: TextView = holder.itemView.findViewById(R.id.task_comments_preview)
@@ -57,14 +62,17 @@ class TaskListAdapter(private var tasks: List<Task>) : RecyclerView.Adapter<Task
 
         holder.commentsPreview?.let { commentsTextView ->
             if (!task.comments.isNullOrEmpty()) {
-                commentsTextView.text = task.comments.take(50) + if (task.comments.length > 50) "..." else ""
+                commentsTextView.text = buildString {
+                    append(task.comments.take(50))
+                    append(if (task.comments.length > 50) "..." else "")
+                }
                 commentsTextView.visibility = View.VISIBLE
             } else {
                 commentsTextView.visibility = View.GONE
             }
         }
 
-        // Handle tags (if you implemented it)
+        // Handle tags
         holder.tagsChipGroup?.let { chipGroup ->
             chipGroup.removeAllViews() // Clear old chips
             if (task.tags.isNotEmpty()) {
