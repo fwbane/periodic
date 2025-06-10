@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.chip.Chip
 import java.util.Date
+import com.google.android.material.color.MaterialColors
 
 class TaskListAdapter(private var tasks: List<Task>) : RecyclerView.Adapter<TaskListAdapter.TaskViewHolder>() {
 
@@ -34,11 +35,10 @@ class TaskListAdapter(private var tasks: List<Task>) : RecyclerView.Adapter<Task
 
         val currentTime = Date() // Get current time to check for overdue
 
-        // Standard way to get a theme-based text color (e.g., textColorSecondary)
-        val defaultTextColor: Int
-        val typedValue = TypedValue()
-        holder.itemView.context.theme.resolveAttribute(android.R.attr.textColorSecondary, typedValue, true)
-        defaultTextColor = ContextCompat.getColor(holder.itemView.context, typedValue.resourceId)
+        val dueDateDefaultColor = MaterialColors.getColor(
+            holder.itemView,
+            com.google.android.material.R.attr.colorOnSurfaceVariant // Use colorOnSurfaceVariant for secondary text
+        )
 
         if (task.dueDate != null) {
             val dateFormat = android.text.format.DateFormat.getMediumDateFormat(holder.itemView.context)
@@ -48,14 +48,26 @@ class TaskListAdapter(private var tasks: List<Task>) : RecyclerView.Adapter<Task
                     dateFormat.format(task.dueDate!!)
                 )
 
-            if (task.dueDate!!.before(currentTime) && task.lastDone?.before(task.dueDate!!) != false) { // Task is overdue
+//            val currentTime = System.currentTimeMillis() // Get current time once for comparison
+
+            // Check if task is overdue: due date is in the past AND (lastDone is null OR lastDone was before due date)
+            // The previous logic `task.lastDone?.before(task.dueDate!!) != false` is a bit complex.
+            // It means `lastDone is null` OR `lastDone is NOT after dueDate`.
+            // Let's simplify to: If lastDone exists, it must be after dueDate to count as 'done'.
+            // Otherwise, if due date is in the past, it's overdue.
+
+            val isOverdue = task.dueDate!!.before(currentTime) &&
+                    (task.lastDone == null || task.lastDone!!.before(task.dueDate!!))
+
+            if (isOverdue) { // Task is overdue
+                // Directly use your predefined red_overdue color from colors.xml
                 holder.taskDueDate.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.red_overdue))
             } else { // Task is not overdue or due date is in the future
-                holder.taskDueDate.setTextColor(defaultTextColor)
+                holder.taskDueDate.setTextColor(dueDateDefaultColor)
             }
         } else {
             holder.taskDueDate.text = holder.itemView.context.getString(R.string.due_date_not_set)
-            holder.taskDueDate.setTextColor(defaultTextColor) // Set to default if no due date
+            holder.taskDueDate.setTextColor(dueDateDefaultColor) // Set to themed default if no due date
         }
         val commentsPreview: TextView = holder.itemView.findViewById(R.id.task_comments_preview)
         val tagsChipGroup: ChipGroup = holder.itemView.findViewById(R.id.task_tags_group) // Make sure ChipGroup is imported

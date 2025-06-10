@@ -26,6 +26,11 @@ import android.app.DatePickerDialog // For Date Picker
 import android.app.TimePickerDialog // For Time Picker
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.datepicker.MaterialDatePicker
+import com.google.android.material.timepicker.MaterialTimePicker
+import com.google.android.material.timepicker.TimeFormat
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -111,7 +116,7 @@ class MainActivity : AppCompatActivity() {
         periodUnitSpinner.adapter = unitAdapter
         periodUnitSpinner.setSelection(1) // Default to "Days"
 
-        val dialog = AlertDialog.Builder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle("Add New Task")
             .setView(dialogView)
             .setPositiveButton("Add", null) // Set to null, we'll handle click manually
@@ -231,7 +236,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showMarkDoneOptionsDialog(task: Task) {
         val options = arrayOf("Mark Done Now", "Mark with Custom Time")
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("Complete Task: ${task.name}")
             .setItems(options) { dialog, which ->
                 when (which) {
@@ -252,40 +257,89 @@ class MainActivity : AppCompatActivity() {
         val calendar = Calendar.getInstance() // Used to get current date/time and to set selected values
 
         // Date Picker Dialog
-        val datePickerDialog = DatePickerDialog(
-            this,
-            { _, year, monthOfYear, dayOfMonth ->
-                // Date selected, now show Time Picker
-                calendar.set(Calendar.YEAR, year)
-                calendar.set(Calendar.MONTH, monthOfYear)
-                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
 
-                // Time Picker Dialog
-                val timePickerDialog = TimePickerDialog(
-                    this,
-                    { _, hourOfDay, minute ->
-                        calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
-                        calendar.set(Calendar.MINUTE, minute)
-                        calendar.set(Calendar.SECOND, 0) // Optional: zero out seconds
-                        calendar.set(Calendar.MILLISECOND, 0) // Optional: zero out milliseconds
+        val datePickerBuilder = MaterialDatePicker.Builder.datePicker()
+            .setTitleText("Select completion date")
+            .setSelection(calendar.timeInMillis) // Set initial selection to current date
+            // Optional: Prevent selecting future dates for completion time
+//            .setTheme(com.google.android.material.R.style.ThemeOverlay_MaterialComponents_DatePicker) // Use Material 3 DatePicker theme
 
-                        // Date and Time selected, mark task done
-                        markTaskDone(task, calendar.timeInMillis)
-                    },
-                    calendar.get(Calendar.HOUR_OF_DAY),
-                    calendar.get(Calendar.MINUTE),
-                    android.text.format.DateFormat.is24HourFormat(this) // Use device's 24-hour setting
-                )
-                timePickerDialog.show()
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
+        // For limiting max date, you need to use a DateValidator
+        // If you always want maxDate as now:
+        datePickerBuilder.setCalendarConstraints(
+            com.google.android.material.datepicker.CalendarConstraints.Builder()
+                .setEnd(System.currentTimeMillis()) // Set max selectable date to now
+                .build()
         )
-        // Optional: Prevent selecting future dates for completion time
-        datePickerDialog.datePicker.maxDate = System.currentTimeMillis()
-        datePickerDialog.show()
+
+
+        val datePicker = datePickerBuilder.build()
+
+        datePicker.addOnPositiveButtonClickListener { selectedDateMillis ->
+            // Date selected, now show Time Picker
+            calendar.timeInMillis = selectedDateMillis
+
+            // --- Material Time Picker Dialog ---
+            val timePicker = MaterialTimePicker.Builder()
+                .setTimeFormat(if (android.text.format.DateFormat.is24HourFormat(this)) TimeFormat.CLOCK_24H else TimeFormat.CLOCK_12H)
+                .setHour(calendar.get(Calendar.HOUR_OF_DAY))
+                .setMinute(calendar.get(Calendar.MINUTE))
+                .setTitleText("Select completion time")
+                .build()
+
+            timePicker.addOnPositiveButtonClickListener {
+                calendar.set(Calendar.HOUR_OF_DAY, timePicker.hour)
+                calendar.set(Calendar.MINUTE, timePicker.minute)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+
+                // Date and Time selected, mark task done
+                markTaskDone(task, calendar.timeInMillis)
+            }
+
+            // Show the Time Picker Dialog
+            // You need to pass the fragment manager of your Activity/Fragment
+            timePicker.show(supportFragmentManager, "MATERIAL_TIME_PICKER_TAG")
+        }
+
+        // Show the Date Picker Dialog
+        datePicker.show(supportFragmentManager, "MATERIAL_DATE_PICKER_TAG")
     }
+//        val datePickerDialog = DatePickerDialog(
+//            this,
+//            { _, year, monthOfYear, dayOfMonth ->
+//                // Date selected, now show Time Picker
+//                calendar.set(Calendar.YEAR, year)
+//                calendar.set(Calendar.MONTH, monthOfYear)
+//                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+//
+//                // Time Picker Dialog
+//                val timePickerDialog = TimePickerDialog(
+//                    this,
+//                    { _, hourOfDay, minute ->
+//                        calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+//                        calendar.set(Calendar.MINUTE, minute)
+//                        calendar.set(Calendar.SECOND, 0) // Optional: zero out seconds
+//                        calendar.set(Calendar.MILLISECOND, 0) // Optional: zero out milliseconds
+//
+//                        // Date and Time selected, mark task done
+//                        markTaskDone(task, calendar.timeInMillis)
+//                    },
+//                    calendar.get(Calendar.HOUR_OF_DAY),
+//                    calendar.get(Calendar.MINUTE),
+//                    android.text.format.DateFormat.is24HourFormat(this) // Use device's 24-hour setting
+//                )
+//                timePickerDialog.show()
+//            },
+//            calendar.get(Calendar.YEAR),
+//            calendar.get(Calendar.MONTH),
+//            calendar.get(Calendar.DAY_OF_MONTH)
+//        )
+//        // Optional: Prevent selecting future dates for completion time
+//        datePickerDialog.datePicker.maxDate = System.currentTimeMillis()
+//        datePickerDialog.show()
+//    }
+
 
     private fun showEditTaskDialog(task: Task) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_task, null)
@@ -339,11 +393,13 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        val dialog = AlertDialog.Builder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setView(dialogView)
             .setPositiveButton("Save", null) // We'll handle click manually for validation
-            .setNegativeButton("Cancel", null)
-            .setNeutralButton("Archive", null) // For Archive action
+            .setNegativeButton("Cancel") { dialogInterface, _ -> // Use the standard lambda
+                dialogInterface.dismiss() // Dismiss the dialog on Cancel
+            }
+            .setNeutralButton("Archive", null)
             .create()
 
         dialog.setOnShowListener {
@@ -401,14 +457,16 @@ class MainActivity : AppCompatActivity() {
 
             // DELETE Button (Now "Archive")
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
-                AlertDialog.Builder(this@MainActivity)
+                MaterialAlertDialogBuilder(this@MainActivity)
                     .setTitle("Archive")
                     .setMessage("Are you sure you want to archive '${task.name}'?")
-                    .setPositiveButton("Archive") { _, _ ->
+                    .setPositiveButton("Archive"){ dialog, _ -> // Lambda for dialog.dismiss() is 'dialog', not '_'
                         taskViewModel.markTaskAsInactive(task)
-                        dialog.dismiss()
+                        dialog.dismiss() // Dismiss the dialog here
                     }
-                    .setNegativeButton("Cancel", null)
+                    .setNegativeButton("Cancel") { dialog, _ -> // You can also dismiss or do other things here if needed
+                        dialog.dismiss() // Explicitly dismiss if cancel is a no-op
+                    }
                     .show()
             }
         }
