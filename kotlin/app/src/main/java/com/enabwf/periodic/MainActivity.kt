@@ -226,12 +226,21 @@ class MainActivity : AppCompatActivity() {
         // Calculate next due date using the task's stored periodInMillis
         val nextDueDateMillis = completionTimeMillis  + task.periodInMillis
         val nextDueDate = Date(nextDueDateMillis)
+        val currentDueDate = task.dueDate
+        // check if new due date is before existing one
+        val actualNextDueDate: Date = if (currentDueDate != null && nextDueDate.before(currentDueDate)) {
+            // If the calculated date is BEFORE the existing due date, KEEP the existing due date.
+            currentDueDate
+        } else {
+            // Otherwise, use the calculated date (e.g., if it's past the original due date, or if task.dueDate is null)
+            nextDueDate
+        }
 
-        val updatedTask = task.copy(lastDone = completionTimeDate, dueDate = nextDueDate)
+        val updatedTask = task.copy(lastDone = completionTimeDate, dueDate = actualNextDueDate)
         taskViewModel.update(updatedTask)
 
         val dateFormat = android.text.format.DateFormat.getDateFormat(this) // Or getMediumDateFormat
-        Toast.makeText(this, "${task.name} done. Next due: ${dateFormat.format(nextDueDate)}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "${task.name} done. Next due: ${dateFormat.format(actualNextDueDate)}", Toast.LENGTH_SHORT).show()
     }
 
     private fun showMarkDoneOptionsDialog(task: Task) {
@@ -278,12 +287,15 @@ class MainActivity : AppCompatActivity() {
         datePicker.addOnPositiveButtonClickListener { selectedDateMillis ->
             // Date selected, now show Time Picker
             calendar.timeInMillis = selectedDateMillis
+            val now = Calendar.getInstance()
+            val currentHour = now.get(Calendar.HOUR_OF_DAY)
+            val currentMinute = now.get(Calendar.MINUTE)
 
             // --- Material Time Picker Dialog ---
             val timePicker = MaterialTimePicker.Builder()
                 .setTimeFormat(if (android.text.format.DateFormat.is24HourFormat(this)) TimeFormat.CLOCK_24H else TimeFormat.CLOCK_12H)
-                .setHour(calendar.get(Calendar.HOUR_OF_DAY))
-                .setMinute(calendar.get(Calendar.MINUTE))
+                .setHour(currentHour)
+                .setMinute(currentMinute)
                 .setTitleText("Select completion time")
                 .build()
 
