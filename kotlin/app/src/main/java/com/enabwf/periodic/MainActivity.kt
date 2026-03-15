@@ -83,6 +83,12 @@ class MainActivity : AppCompatActivity() {
             showSettingsDialog()
         }
 
+        val historyButton: FloatingActionButton = findViewById(R.id.history_button)
+        historyButton.setOnClickListener {
+            val intent = android.content.Intent(this, HistoryActivity::class.java)
+            startActivity(intent)
+        }
+
         // Add click listener for RecyclerView items
         taskRecyclerView.addOnItemTouchListener(
             RecyclerItemClickListener(this, taskRecyclerView, object : RecyclerItemClickListener.OnItemClickListener {

@@ -69,4 +69,17 @@ class TaskRepository(private val taskDao: TaskDao) {
     suspend fun insertCompletionRecords(records: List<CompletionRecord>) {
         taskDao.insertCompletionRecords(records)
     }
+
+    suspend fun getCompletionHistory(limit: Int, offset: Int, tagFilter: String?): List<CompletionHistoryItem> {
+        return taskDao.getCompletionHistory(limit, offset, tagFilter)
+    }
+
+    suspend fun getAllTags(): List<String> {
+        val rawTags = taskDao.getAllTagsRaw()
+        return rawTags.flatMap { it.split(",") }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .sorted()
+    }
 }

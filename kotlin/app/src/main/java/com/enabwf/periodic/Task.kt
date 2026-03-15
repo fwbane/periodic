@@ -1,9 +1,10 @@
 package com.enabwf.periodic
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.Date
 
-@Entity(tableName = "task_table")
+@Entity(tableName = "task_table", indices = [Index(value = ["name"], unique = true)])
 data class Task(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,

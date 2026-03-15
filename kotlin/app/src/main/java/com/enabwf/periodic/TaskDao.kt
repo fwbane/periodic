@@ -69,4 +69,28 @@ interface TaskDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCompletionRecords(records: List<CompletionRecord>)
+
+    @Query("""
+        SELECT 
+            c.id as completionId,
+            c.completionTime,
+            t.name as taskName,
+            t.tags as tags,
+            (
+                SELECT c2.completionTime
+                FROM completion_table c2
+                WHERE c2.taskId = c.taskId AND c2.completionTime < c.completionTime
+                ORDER BY c2.completionTime DESC
+                LIMIT 1
+            ) as previousCompletionTime
+        FROM completion_table c
+        INNER JOIN task_table t ON c.taskId = t.id
+        WHERE (:tagFilter IS NULL OR t.tags LIKE '%' || :tagFilter || '%')
+        ORDER BY c.completionTime DESC
+        LIMIT :limit OFFSET :offset
+    """)
+    suspend fun getCompletionHistory(limit: Int, offset: Int, tagFilter: String?): List<CompletionHistoryItem>
+
+    @Query("SELECT DISTINCT tags FROM task_table")
+    suspend fun getAllTagsRaw(): List<String>
 }
