@@ -76,6 +76,7 @@ interface TaskDao {
             c.completionTime,
             t.name as taskName,
             t.tags as tags,
+            t.periodInMillis as taskPeriodInMillis,
             (
                 SELECT c2.completionTime
                 FROM completion_table c2
