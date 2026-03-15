@@ -37,11 +37,36 @@ class TaskRepository(private val taskDao: TaskDao) {
         return taskDao.getCompletionRecordsForTask(taskId)
     }
 
+    suspend fun getCompletionRecordsForTaskList(taskId: Int): List<CompletionRecord> {
+        return taskDao.getCompletionRecordsForTaskList(taskId)
+    }
+
     suspend fun doesTaskNameExist(name: String): Boolean {
         return taskDao.doesTaskNameExist(name)
     }
 
     suspend fun doesOtherTaskNameExist(name: String, taskIdToExclude: Int): Boolean {
         return taskDao.doesOtherTaskNameExist(name, taskIdToExclude)
+    }
+
+    suspend fun getAllTasks(): List<Task> {
+        return taskDao.getAllTasks()
+    }
+
+    suspend fun getAllCompletionRecords(): List<CompletionRecord> {
+        return taskDao.getAllCompletionRecords()
+    }
+
+    suspend fun clearDatabase() {
+        taskDao.clearAllCompletionRecords()
+        taskDao.clearAllTasks()
+    }
+
+    suspend fun insertTasks(tasks: List<Task>) {
+        taskDao.insertTasks(tasks)
+    }
+
+    suspend fun insertCompletionRecords(records: List<CompletionRecord>) {
+        taskDao.insertCompletionRecords(records)
     }
 }

@@ -30,6 +30,11 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 
 
 class MainActivity : AppCompatActivity() {
@@ -39,6 +44,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var taskListAdapter: TaskListAdapter // Make adapter a class member
+
+    private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        uri?.let { exportDatabaseToUri(it) }
+    }
+
+    private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { showImportConfirmationDialog(it) }
+    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,6 +65,9 @@ class MainActivity : AppCompatActivity() {
         taskRecyclerView.adapter = taskListAdapter
         taskRecyclerView.layoutManager = LinearLayoutManager(this)  // Set a LayoutManager
 
+        // Trigger backfill of median calculations if needed
+        taskViewModel.checkAndBackfillMedians()
+
         // Observe LiveData and submit list to the adapter
         taskViewModel.allTasks.observe(this, Observer { tasks ->
             tasks?.let { taskListAdapter.submitList(it) }
@@ -60,6 +76,11 @@ class MainActivity : AppCompatActivity() {
         val addTaskButton: FloatingActionButton = findViewById(R.id.add_task_button)
         addTaskButton.setOnClickListener {
             showAddTaskDialog()
+        }
+
+        val settingsButton: FloatingActionButton = findViewById(R.id.settings_button)
+        settingsButton.setOnClickListener {
+            showSettingsDialog()
         }
 
         // Add click listener for RecyclerView items
@@ -217,30 +238,41 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun markTaskDone(task: Task, completionTimeMillis: Long) {
-//        val currentTime = System.currentTimeMillis()
-        val completionTimeDate = Date(completionTimeMillis)
+        lifecycleScope.launch {
+            val completionTimeDate = Date(completionTimeMillis)
 
-        val completionRecord = CompletionRecord(taskId = task.id, completionTime = completionTimeDate)
-        taskViewModel.insertCompletionRecord(completionRecord)
+            val completionRecord = CompletionRecord(taskId = task.id, completionTime = completionTimeDate)
+            taskViewModel.addCompletionRecord(completionRecord) // suspend
 
-        // Calculate next due date using the task's stored periodInMillis
-        val nextDueDateMillis = completionTimeMillis  + task.periodInMillis
-        val nextDueDate = Date(nextDueDateMillis)
-        val currentDueDate = task.dueDate
-        // check if new due date is before existing one
-        val actualNextDueDate: Date = if (currentDueDate != null && nextDueDate.before(currentDueDate)) {
-            // If the calculated date is BEFORE the existing due date, KEEP the existing due date.
-            currentDueDate
-        } else {
-            // Otherwise, use the calculated date (e.g., if it's past the original due date, or if task.dueDate is null)
-            nextDueDate
+            // Calculate medians
+            val updatedRecords = taskViewModel.getCompletionRecordsForTaskList(task.id)
+            val medianHistory = PeriodCalculator.calculateMedian(updatedRecords)
+            val medianRecent = PeriodCalculator.calculateRecentMedian(updatedRecords)
+
+            // Calculate next due date using the task's stored periodInMillis
+            val nextDueDateMillis = completionTimeMillis  + task.periodInMillis
+            val nextDueDate = Date(nextDueDateMillis)
+            val currentDueDate = task.dueDate
+            // check if new due date is before existing one
+            val actualNextDueDate: Date = if (currentDueDate != null && nextDueDate.before(currentDueDate)) {
+                // If the calculated date is BEFORE the existing due date, KEEP the existing due date.
+                currentDueDate
+            } else {
+                // Otherwise, use the calculated date (e.g., if it's past the original due date, or if task.dueDate is null)
+                nextDueDate
+            }
+
+            val updatedTask = task.copy(
+                lastDone = completionTimeDate,
+                dueDate = actualNextDueDate,
+                medianHistoryPeriod = medianHistory,
+                medianRecentPeriod = medianRecent
+            )
+            taskViewModel.updateTask(updatedTask) // suspend
+
+            val dateFormat = android.text.format.DateFormat.getDateFormat(this@MainActivity) // Or getMediumDateFormat
+            Toast.makeText(this@MainActivity, "${task.name} done. Next due: ${dateFormat.format(actualNextDueDate)}", Toast.LENGTH_SHORT).show()
         }
-
-        val updatedTask = task.copy(lastDone = completionTimeDate, dueDate = actualNextDueDate)
-        taskViewModel.update(updatedTask)
-
-        val dateFormat = android.text.format.DateFormat.getDateFormat(this) // Or getMediumDateFormat
-        Toast.makeText(this, "${task.name} done. Next due: ${dateFormat.format(actualNextDueDate)}", Toast.LENGTH_SHORT).show()
     }
 
     private fun showMarkDoneOptionsDialog(task: Task) {
@@ -394,16 +426,13 @@ class MainActivity : AppCompatActivity() {
             records?.let {
                 // Show last 5 or make it configurable.
                 historyAdapter.submitList(it.take(5)) // Or it for all records
-
-                // Calculate and Display Actual Period
-                if (it.size >= 2) {
-                    val actualPeriodMillis = calculateActualPeriod(it)
-                    actualPeriodTextView.text = formatDuration(actualPeriodMillis)
-                } else {
-                    actualPeriodTextView.text = "N/A (needs at least 2 completions)"
-                }
             }
         })
+
+        // Display Median Periods
+        val medianHistoryStr = formatDuration(task.medianHistoryPeriod ?: 0)
+        val medianRecentStr = formatDuration(task.medianRecentPeriod ?: 0)
+        actualPeriodTextView.text = "$medianHistoryStr / $medianRecentStr"
 
         val dialog = MaterialAlertDialogBuilder(this)
             .setView(dialogView)
@@ -500,17 +529,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun calculateActualPeriod(records: List<CompletionRecord>): Long {
-        if (records.size < 2) return 0L
-        // Records are sorted DESC by DAO, so reverse for chronological calculation
-        val sortedRecords = records.sortedBy { it.completionTime.time }
-        var totalDifference = 0L
-        for (i in 0 until sortedRecords.size - 1) {
-            totalDifference += (sortedRecords[i+1].completionTime.time - sortedRecords[i].completionTime.time)
-        }
-        return totalDifference / (sortedRecords.size - 1)
-    }
-
     // Helper to format duration (Long millis) into a human-readable string
     private fun formatDuration(millis: Long): String {
         if (millis <= 0) return "N/A"
@@ -525,6 +543,71 @@ class MainActivity : AppCompatActivity() {
         if (minutes > 0 && days == 0L) parts.add("$minutes minute${if (minutes > 1) "s" else ""}") // Show minutes if duration is less than a day
 
         return if (parts.isEmpty()) "Less than a minute" else parts.joinToString(", ")
+    }
+
+    private fun showSettingsDialog() {
+        val options = arrayOf(getString(R.string.export_database), getString(R.string.import_database))
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.settings)
+            .setItems(options) { dialog, which ->
+                when (which) {
+                    0 -> exportLauncher.launch("periodic_backup.csv")
+                    1 -> importLauncher.launch(arrayOf("text/comma-separated-values", "text/csv"))
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun exportDatabaseToUri(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                val tasks = taskViewModel.getAllTasks()
+                val records = taskViewModel.getAllCompletionRecords()
+                val csvContent = CsvHelper.toCsv(tasks, records)
+                
+                contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    OutputStreamWriter(outputStream).use { writer ->
+                        writer.write(csvContent)
+                    }
+                }
+                Toast.makeText(this@MainActivity, R.string.export_success, Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(this@MainActivity, R.string.error_exporting, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun showImportConfirmationDialog(uri: Uri) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.import_confirmation_title)
+            .setMessage(R.string.import_confirmation_message)
+            .setPositiveButton(R.string.import_btn) { dialog, _ ->
+                importDatabaseFromUri(uri)
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun importDatabaseFromUri(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                contentResolver.openInputStream(uri)?.use { inputStream ->
+                    BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                        val csvContent = reader.readText()
+                        val (tasks, records) = CsvHelper.fromCsv(csvContent)
+                        taskViewModel.replaceDatabase(tasks, records)
+                    }
+                }
+                Toast.makeText(this@MainActivity, R.string.import_success, Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(this@MainActivity, R.string.error_importing, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 }
 

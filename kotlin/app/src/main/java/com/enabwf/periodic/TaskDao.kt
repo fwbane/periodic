@@ -39,6 +39,9 @@ interface TaskDao {
     @Query("SELECT * FROM completion_table WHERE taskId = :taskId ORDER BY completionTime DESC")
     fun getCompletionRecordsForTask(taskId: Int): LiveData<List<CompletionRecord>>
 
+    @Query("SELECT * FROM completion_table WHERE taskId = :taskId ORDER BY completionTime DESC")
+    suspend fun getCompletionRecordsForTaskList(taskId: Int): List<CompletionRecord>
+
     @Query("DELETE FROM completion_table WHERE taskId = :taskId") // New: Delete completion records for a task
     suspend fun deleteCompletionRecordsForTask(taskId: Int): Int
 
@@ -48,4 +51,22 @@ interface TaskDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM task_table WHERE LOWER(name) = LOWER(:name) AND id != :taskIdToExclude LIMIT 1)")
     suspend fun doesOtherTaskNameExist(name: String, taskIdToExclude: Int): Boolean
+
+    @Query("SELECT * FROM task_table")
+    suspend fun getAllTasks(): List<Task>
+
+    @Query("SELECT * FROM completion_table")
+    suspend fun getAllCompletionRecords(): List<CompletionRecord>
+
+    @Query("DELETE FROM task_table")
+    suspend fun clearAllTasks()
+
+    @Query("DELETE FROM completion_table")
+    suspend fun clearAllCompletionRecords()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTasks(tasks: List<Task>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCompletionRecords(records: List<CompletionRecord>)
 }
