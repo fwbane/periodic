@@ -138,3 +138,4 @@ app/db/*
 app/env/*
 app/winenv/*
 app/db/things.db
+perdic_abandoned_python_project/*

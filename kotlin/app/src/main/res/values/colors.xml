@@ -35,4 +35,37 @@
     <color name="md_theme_light_outlineVariant">#BFC8CB</color>
     <color name="md_theme_light_scrim">#000000</color>
 
-    <color name="red_overdue">#D32F2F</color> </resources>
+    <!-- Default fallbacks for night-qualified colors to satisfy lint checks. -->
+    <color name="md_theme_dark_primary">#86D1E3</color>
+    <color name="md_theme_dark_onPrimary">#003540</color>
+    <color name="md_theme_dark_primaryContainer">#004C58</color>
+    <color name="md_theme_dark_onPrimaryContainer">#BCE9F7</color>
+    <color name="md_theme_dark_secondary">#B4CBD4</color>
+    <color name="md_theme_dark_onSecondary">#1E3339</color>
+    <color name="md_theme_dark_secondaryContainer">#344A51</color>
+    <color name="md_theme_dark_onSecondaryContainer">#D0E7F0</color>
+    <color name="md_theme_dark_tertiary">#C7C3E8</color>
+    <color name="md_theme_dark_onTertiary">#2F2E4D</color>
+    <color name="md_theme_dark_tertiaryContainer">#464565</color>
+    <color name="md_theme_dark_onTertiaryContainer">#E3DFF9</color>
+    <color name="md_theme_dark_error">#FFB4AB</color>
+    <color name="md_theme_dark_onError">#690005</color>
+    <color name="md_theme_dark_errorContainer">#93000A</color>
+    <color name="md_theme_dark_onErrorContainer">#FFDAD6</color>
+    <color name="md_theme_dark_background">#001F26</color>
+    <color name="md_theme_dark_onBackground">#C7E7F0</color>
+    <color name="md_theme_dark_surface">#001F26</color>
+    <color name="md_theme_dark_onSurface">#C7E7F0</color>
+    <color name="md_theme_dark_surfaceVariant">#40484B</color>
+    <color name="md_theme_dark_onSurfaceVariant">#BFC8CB</color>
+    <color name="md_theme_dark_outline">#8A9296</color>
+    <color name="md_theme_dark_inverseOnSurface">#001F26</color>
+    <color name="md_theme_dark_inverseSurface">#C7E7F0</color>
+    <color name="md_theme_dark_inversePrimary">#22606F</color>
+    <color name="md_theme_dark_shadow">#000000</color>
+    <color name="md_theme_dark_surfaceTint">#86D1E3</color>
+    <color name="md_theme_dark_outlineVariant">#40484B</color>
+    <color name="md_theme_dark_scrim">#000000</color>
+
+    <color name="red_overdue">#D32F2F</color>
+</resources>
