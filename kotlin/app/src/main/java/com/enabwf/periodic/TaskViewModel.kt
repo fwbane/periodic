@@ -51,6 +51,14 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         repository.insertCompletionRecord(record)
     }
 
+    suspend fun updateCompletionRecord(record: CompletionRecord) {
+        repository.updateCompletionRecord(record)
+    }
+
+    suspend fun deleteCompletionRecordById(recordId: Int) {
+        repository.deleteCompletionRecordById(recordId)
+    }
+
     fun getCompletionRecordsForTask(taskId: Int): LiveData<List<CompletionRecord>> {
         return repository.getCompletionRecordsForTask(taskId)
     }
@@ -69,6 +77,10 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun getAllTasks(): List<Task> {
         return repository.getAllTasks()
+    }
+
+    suspend fun getTaskById(taskId: Int): Task? {
+        return repository.getTaskById(taskId)
     }
 
     suspend fun getAllCompletionRecords(): List<CompletionRecord> {

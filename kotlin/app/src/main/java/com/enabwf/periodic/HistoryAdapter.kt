@@ -9,7 +9,10 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-class HistoryAdapter(private var historyList: List<CompletionHistoryItem> = emptyList()) : RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
+class HistoryAdapter(
+    private var historyList: List<CompletionHistoryItem> = emptyList(),
+    private val onItemClick: ((CompletionHistoryItem) -> Unit)? = null
+) : RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val taskName: TextView = view.findViewById(R.id.text_history_task_name)
@@ -27,6 +30,9 @@ class HistoryAdapter(private var historyList: List<CompletionHistoryItem> = empt
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = historyList[position]
         holder.taskName.text = item.taskName
+        holder.itemView.setOnClickListener {
+            onItemClick?.invoke(item)
+        }
         
         val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
         holder.date.text = dateFormat.format(item.completionTime)

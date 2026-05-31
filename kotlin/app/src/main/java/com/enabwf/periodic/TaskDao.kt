@@ -36,6 +36,12 @@ interface TaskDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCompletionRecord(record: CompletionRecord): Long
 
+    @Update
+    suspend fun updateCompletionRecord(record: CompletionRecord): Int
+
+    @Query("DELETE FROM completion_table WHERE id = :recordId")
+    suspend fun deleteCompletionRecordById(recordId: Int): Int
+
     @Query("SELECT * FROM completion_table WHERE taskId = :taskId ORDER BY completionTime DESC")
     fun getCompletionRecordsForTask(taskId: Int): LiveData<List<CompletionRecord>>
 
@@ -55,6 +61,9 @@ interface TaskDao {
     @Query("SELECT * FROM task_table")
     suspend fun getAllTasks(): List<Task>
 
+    @Query("SELECT * FROM task_table WHERE id = :taskId LIMIT 1")
+    suspend fun getTaskById(taskId: Int): Task?
+
     @Query("SELECT * FROM completion_table")
     suspend fun getAllCompletionRecords(): List<CompletionRecord>
 
@@ -73,6 +82,7 @@ interface TaskDao {
     @Query("""
         SELECT 
             c.id as completionId,
+            c.taskId as taskId,
             c.completionTime,
             t.name as taskName,
             t.tags as tags,

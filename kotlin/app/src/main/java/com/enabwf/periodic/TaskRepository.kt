@@ -33,6 +33,14 @@ class TaskRepository(private val taskDao: TaskDao) {
         taskDao.insertCompletionRecord(record)
     }
 
+    suspend fun updateCompletionRecord(record: CompletionRecord) {
+        taskDao.updateCompletionRecord(record)
+    }
+
+    suspend fun deleteCompletionRecordById(recordId: Int) {
+        taskDao.deleteCompletionRecordById(recordId)
+    }
+
     fun getCompletionRecordsForTask(taskId: Int): LiveData<List<CompletionRecord>> {
         return taskDao.getCompletionRecordsForTask(taskId)
     }
@@ -51,6 +59,10 @@ class TaskRepository(private val taskDao: TaskDao) {
 
     suspend fun getAllTasks(): List<Task> {
         return taskDao.getAllTasks()
+    }
+
+    suspend fun getTaskById(taskId: Int): Task? {
+        return taskDao.getTaskById(taskId)
     }
 
     suspend fun getAllCompletionRecords(): List<CompletionRecord> {

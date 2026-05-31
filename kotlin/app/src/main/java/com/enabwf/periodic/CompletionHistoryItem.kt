@@ -4,6 +4,7 @@ import java.util.Date
 
 data class CompletionHistoryItem(
     val completionId: Int,
+    val taskId: Int,
     val completionTime: Date,
     val taskName: String,
     val tags: String,
