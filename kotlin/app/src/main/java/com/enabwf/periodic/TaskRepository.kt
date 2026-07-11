@@ -1,5 +1,6 @@
 package com.enabwf.periodic
 import androidx.lifecycle.LiveData
+import java.util.Date
 
 class TaskRepository(private val taskDao: TaskDao) {
 
@@ -93,5 +94,36 @@ class TaskRepository(private val taskDao: TaskDao) {
             .filter { it.isNotEmpty() }
             .distinct()
             .sorted()
+    }
+
+    suspend fun getAnalyticsCompletions(
+        startTime: Date?,
+        endTimeExclusive: Date,
+        includeArchived: Boolean,
+        taskId: Int?,
+        exactTag: String?
+    ): List<AnalyticsCompletionRow> {
+        val rows = taskDao.getAnalyticsCompletions(
+            startTime = startTime,
+            endTimeExclusive = endTimeExclusive,
+            includeArchived = includeArchived,
+            taskId = taskId
+        )
+        val tag = exactTag?.trim()?.takeIf { it.isNotEmpty() } ?: return rows
+        return rows.filter { row ->
+            row.tags.split(",")
+                .asSequence()
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .any { it == tag }
+        }
+    }
+
+    suspend fun getAnalyticsTasks(includeArchived: Boolean): List<Task> {
+        return taskDao.getAllTasks()
+            .asSequence()
+            .filter { includeArchived || it.isActive }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+            .toList()
     }
 }

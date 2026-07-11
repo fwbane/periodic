@@ -8,6 +8,19 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Update
 import androidx.room.Delete
+import java.util.Date
+
+data class AnalyticsCompletionRow(
+    val completionId: Int,
+    val taskId: Int,
+    val completionTime: Date,
+    val taskName: String,
+    val tags: String,
+    val taskPeriodInMillis: Long,
+    val isActive: Boolean,
+    val previousCompletionTime: Date?
+)
+
 @Dao
 interface TaskDao {
     @Query("SELECT * FROM task_table WHERE isActive = 1 ORDER BY dueDate ASC, name ASC")
@@ -104,4 +117,39 @@ interface TaskDao {
 
     @Query("SELECT DISTINCT tags FROM task_table")
     suspend fun getAllTagsRaw(): List<String>
+
+    @Query("""
+        SELECT
+            c.id AS completionId,
+            c.taskId AS taskId,
+            c.completionTime AS completionTime,
+            t.name AS taskName,
+            t.tags AS tags,
+            t.periodInMillis AS taskPeriodInMillis,
+            t.isActive AS isActive,
+            (
+                SELECT c2.completionTime
+                FROM completion_table c2
+                WHERE c2.taskId = c.taskId
+                    AND (
+                        c2.completionTime < c.completionTime
+                        OR (c2.completionTime = c.completionTime AND c2.id < c.id)
+                    )
+                ORDER BY c2.completionTime DESC, c2.id DESC
+                LIMIT 1
+            ) AS previousCompletionTime
+        FROM completion_table c
+        INNER JOIN task_table t ON c.taskId = t.id
+        WHERE (:startTime IS NULL OR c.completionTime >= :startTime)
+            AND c.completionTime < :endTimeExclusive
+            AND (:includeArchived = 1 OR t.isActive = 1)
+            AND (:taskId IS NULL OR c.taskId = :taskId)
+        ORDER BY c.completionTime ASC, c.id ASC
+    """)
+    suspend fun getAnalyticsCompletions(
+        startTime: Date?,
+        endTimeExclusive: Date,
+        includeArchived: Boolean,
+        taskId: Int?
+    ): List<AnalyticsCompletionRow>
 }

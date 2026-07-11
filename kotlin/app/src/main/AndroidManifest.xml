@@ -28,6 +28,11 @@
             android:name=".HistoryActivity"
             android:label="@string/history"
             android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".AnalyticsActivity"
+            android:exported="false"
+            android:label="@string/analytics"
+            android:parentActivityName=".MainActivity" />
     </application>
 
 </manifest>

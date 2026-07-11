@@ -3,11 +3,13 @@ package com.enabwf.periodic
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import android.os.Bundle
+import android.content.Intent
 import android.widget.ListView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.textfield.TextInputEditText
 import java.util.Date
 import java.util.Calendar
@@ -78,15 +80,20 @@ class MainActivity : AppCompatActivity() {
             showAddTaskDialog()
         }
 
-        val settingsButton: FloatingActionButton = findViewById(R.id.settings_button)
-        settingsButton.setOnClickListener {
-            showSettingsDialog()
-        }
-
-        val historyButton: FloatingActionButton = findViewById(R.id.history_button)
-        historyButton.setOnClickListener {
-            val intent = android.content.Intent(this, HistoryActivity::class.java)
-            startActivity(intent)
+        val bottomNavigation: BottomNavigationView = findViewById(R.id.bottom_navigation)
+        bottomNavigation.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.navigation_history -> {
+                    startActivity(Intent(this, HistoryActivity::class.java))
+                }
+                R.id.navigation_analytics -> {
+                    startActivity(Intent(this, AnalyticsActivity::class.java))
+                }
+                R.id.navigation_settings -> {
+                    showSettingsDialog()
+                }
+            }
+            false
         }
 
         // Add click listener for RecyclerView items

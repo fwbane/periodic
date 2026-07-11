@@ -8,7 +8,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.enabwf.periodic.TaskDao
 
-@Database(entities = [Task::class, CompletionRecord::class], version = 5, exportSchema = false)
+@Database(entities = [Task::class, CompletionRecord::class], version = 6, exportSchema = false)
 @TypeConverters(Converters::class)  //  use converters Date<>Long in Converters.kt
 abstract class TaskDatabase : RoomDatabase() {
 
@@ -47,6 +47,16 @@ abstract class TaskDatabase : RoomDatabase() {
             }
         }
 
+        internal val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "index_completion_table_taskId_completionTime " +
+                        "ON completion_table(taskId, completionTime)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): TaskDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -55,7 +65,13 @@ abstract class TaskDatabase : RoomDatabase() {
                     "task_database"
                 )
                 .fallbackToDestructiveMigration()
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6
+                )
                 .build()
                 INSTANCE = instance
                 instance

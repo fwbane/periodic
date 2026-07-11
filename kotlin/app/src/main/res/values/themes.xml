@@ -45,4 +45,38 @@
         <item name="buttonBarNegativeButtonStyle">@style/Widget.Material3.Button.TextButton.Dialog</item>
         <item name="buttonBarNeutralButtonStyle">@style/Widget.Material3.Button.TextButton.Dialog</item>
     </style>
+
+    <style name="AnalyticsLineChart">
+        <item name="layers">line</item>
+        <item name="showStartAxis">true</item>
+        <item name="showBottomAxis">true</item>
+        <item name="lineLayerStyle">@style/AnalyticsLineLayer</item>
+    </style>
+
+    <style name="AnalyticsColumnChart">
+        <item name="layers">column</item>
+        <item name="showStartAxis">true</item>
+        <item name="showBottomAxis">true</item>
+        <item name="columnLayerStyle">@style/AnalyticsColumnLayer</item>
+    </style>
+
+    <style name="AnalyticsLineLayer">
+        <item name="line1Style">@style/AnalyticsTrendLine</item>
+        <item name="pointSpacing">24dp</item>
+    </style>
+
+    <style name="AnalyticsTrendLine">
+        <item name="android:color">?attr/colorPrimary</item>
+        <item name="thickness">3dp</item>
+        <item name="pointSize">6dp</item>
+    </style>
+
+    <style name="AnalyticsColumnLayer">
+        <item name="column1Style">@style/AnalyticsAdherenceColumn</item>
+        <item name="columnCollectionSpacing">20dp</item>
+    </style>
+
+    <style name="AnalyticsAdherenceColumn">
+        <item name="android:color">?attr/colorTertiary</item>
+    </style>
 </resources>
