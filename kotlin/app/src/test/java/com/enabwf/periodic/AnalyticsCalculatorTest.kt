@@ -182,11 +182,123 @@ class AnalyticsCalculatorTest {
         }
     }
 
+    @Test
+    fun emptyDatasetIncludesZeroFilledTimelineBins() {
+        val metrics = calculate(emptyList(), LocalDate.parse("2026-01-01"), LocalDate.parse("2026-01-03"))
+        assertEquals(3, metrics.timeline.bins.size)
+        assertEquals(listOf(0, 0, 0), metrics.timeline.bins.map { it.completionCount })
+        assertEquals(0, metrics.overview.totalTaskCount)
+        assertEquals(0, metrics.taskAdherence.size)
+        assertEquals(24, metrics.patterns.hourly.size)
+    }
+
+    @Test
+    fun timelineGroupsByTagIncludingUntaggedAndOtherRollup() {
+        val metrics = AnalyticsCalculator.calculate(
+            rows = listOf(
+                row(id = 1, completionMillis = instant("2026-01-01"), tags = "home, health"),
+                row(id = 2, completionMillis = instant("2026-01-02"), tags = "work"),
+                row(id = 3, completionMillis = instant("2026-01-03"), tags = " ")
+            ),
+            rangeStart = LocalDate.parse("2026-01-01"),
+            rangeEnd = LocalDate.parse("2026-01-03"),
+            zoneId = zone,
+            requestedBinSize = AnalyticsBinSize.DAY
+        )
+
+        assertEquals(
+            mapOf("home" to 1, "health" to 1, "work" to 1, "Untagged" to 1),
+            metrics.timeline.tagSeries.mapValues { it.value.sum() }
+        )
+    }
+
+    @Test
+    fun perTaskAdherenceUsesMedianRatioFormula() {
+        val period = 86_400_000L
+        val task = Task(id = 1, name = "Task", periodInMillis = period)
+        val metrics = calculate(
+            listOf(
+                row(id = 1, completionMillis = instant("2026-01-01"), previousMillis = null, periodMillis = period),
+                row(
+                    id = 2,
+                    completionMillis = instant("2026-01-02"),
+                    previousMillis = instant("2026-01-01"),
+                    periodMillis = period
+                )
+            ),
+            LocalDate.parse("2026-01-01"),
+            LocalDate.parse("2026-01-03"),
+            tasks = listOf(task)
+        )
+
+        val adherence = metrics.taskAdherence.single()
+        assertEquals(100.0, adherence.adherencePercent, 0.01)
+        assertEquals(1, adherence.onScheduleCount)
+    }
+
+    @Test
+    fun perTaskAdherenceUsesAllTasksEvenWhenGroupedFromTaskTable() {
+        val period = 86_400_000L
+        val task = Task(id = 1, name = "Cadence", periodInMillis = period)
+        val metrics = calculate(
+            listOf(
+                row(id = 1, taskId = 1, taskName = "Cadence", completionMillis = instant("2026-01-01")),
+                row(id = 2, taskId = 1, taskName = "Cadence", completionMillis = instant("2026-01-02"))
+            ),
+            LocalDate.parse("2026-01-01"),
+            LocalDate.parse("2026-01-03"),
+            tasks = listOf(task)
+        )
+
+        assertEquals(1, metrics.taskAdherence.size)
+        assertEquals("Cadence", metrics.taskAdherence.single().taskName)
+    }
+
+    @Test
+    fun perTaskAdherenceWorksFromCompletionRowsWithoutTaskList() {
+        val period = 86_400_000L
+        val metrics = calculate(
+            listOf(
+                row(
+                    id = 1,
+                    taskId = 1,
+                    taskName = "Cadence",
+                    completionMillis = instant("2026-01-01"),
+                    previousMillis = null,
+                    periodMillis = period
+                ),
+                row(
+                    id = 2,
+                    taskId = 1,
+                    taskName = "Cadence",
+                    completionMillis = instant("2026-01-02"),
+                    previousMillis = instant("2026-01-01"),
+                    periodMillis = period
+                )
+            ),
+            LocalDate.parse("2026-01-01"),
+            LocalDate.parse("2026-01-03"),
+            tasks = emptyList()
+        )
+
+        assertEquals(1, metrics.taskAdherence.size)
+        assertEquals("Cadence", metrics.taskAdherence.single().taskName)
+    }
+
     private fun calculate(
         rows: List<AnalyticsCompletionRow>,
         start: LocalDate?,
-        end: LocalDate
-    ): AnalyticsMetrics = AnalyticsCalculator.calculate(rows, start, end, zone)
+        end: LocalDate,
+        tasks: List<Task> = emptyList(),
+        binSize: AnalyticsBinSize? = null
+    ): AnalyticsMetrics = AnalyticsCalculator.calculate(
+        rows = rows,
+        rangeStart = start,
+        rangeEnd = end,
+        zoneId = zone,
+        tasks = tasks,
+        requestedBinSize = binSize
+    )
 
     private fun row(
         id: Int,

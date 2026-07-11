@@ -8,20 +8,16 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.datepicker.CalendarConstraints
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.appbar.MaterialToolbar
-import com.patrykandpatrick.vico.views.cartesian.CartesianChartView
-import com.patrykandpatrick.vico.views.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.views.cartesian.data.CartesianValueFormatter
-import com.patrykandpatrick.vico.views.cartesian.marker.DefaultCartesianMarker
-import com.patrykandpatrick.vico.views.common.component.TextComponent
-import com.google.android.material.color.MaterialColors
+import com.google.android.material.tabs.TabLayoutMediator
+import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.tabs.TabLayout
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -34,70 +30,55 @@ class AnalyticsActivity : AppCompatActivity() {
         AnalyticsViewModelFactory(TaskRepository(database.taskDao()))
     }
 
+    private lateinit var toolbar: MaterialToolbar
     private lateinit var rangeToggle: MaterialButtonToggleGroup
-    private lateinit var customRangeButton: MaterialButton
-    private lateinit var tagFilter: AutoCompleteTextView
-    private lateinit var taskFilter: AutoCompleteTextView
-    private lateinit var includeArchived: MaterialSwitch
+    private lateinit var rangeSummary: TextView
     private lateinit var progress: ProgressBar
     private lateinit var statusContainer: View
     private lateinit var statusMessage: TextView
     private lateinit var retryButton: MaterialButton
-    private lateinit var summaryViews: List<View>
-    private lateinit var taskAdapter: AnalyticsTaskAdapter
-    private lateinit var trendChart: CartesianChartView
-    private lateinit var adherenceChart: CartesianChartView
+    private lateinit var pager: ViewPager2
+    private lateinit var tabs: TabLayout
     private var taskOptions: List<AnalyticsTaskOption> = emptyList()
     private var rendering = false
-    private var chartsConfigured = false
-    private var trendAxisLabels: List<String> = emptyList()
-    private val adherenceAxisLabels = mutableListOf<String>()
+    private var filterSheet: BottomSheetDialog? = null
+    private var filterSheetView: View? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_analytics)
 
-        findViewById<MaterialToolbar>(R.id.analytics_toolbar)
-            .setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        toolbar = findViewById(R.id.analytics_toolbar)
+        toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        toolbar.setOnMenuItemClickListener { item ->
+            if (item.itemId == R.id.action_analytics_filters) {
+                showFiltersSheet()
+                true
+            } else {
+                false
+            }
+        }
 
         rangeToggle = findViewById(R.id.range_toggle)
-        customRangeButton = findViewById(R.id.custom_range_button)
-        tagFilter = findViewById(R.id.tag_filter)
-        taskFilter = findViewById(R.id.task_filter)
-        includeArchived = findViewById(R.id.include_archived)
+        rangeSummary = findViewById(R.id.range_summary)
         progress = findViewById(R.id.analytics_progress)
         statusContainer = findViewById(R.id.status_container)
         statusMessage = findViewById(R.id.status_message)
         retryButton = findViewById(R.id.retry_button)
-        trendChart = findViewById(R.id.trend_chart)
-        adherenceChart = findViewById(R.id.adherence_chart)
-        summaryViews = listOf(
-            findViewById(R.id.summary_cards),
-            findViewById(R.id.trend_title),
-            findViewById(R.id.adherence_title),
-            findViewById(R.id.tasks_title),
-            findViewById(R.id.task_rankings),
-            findViewById(R.id.tags_title),
-            findViewById(R.id.tag_rankings)
-        )
+        pager = findViewById(R.id.analytics_pager)
+        tabs = findViewById(R.id.analytics_tabs)
 
-        trendChart.modelProducer = viewModel.trendChartProducer
-        adherenceChart.modelProducer = viewModel.adherenceChartProducer
-        adherenceAxisLabels += listOf(
-            getString(R.string.analytics_early),
-            getString(R.string.analytics_on_schedule),
-            getString(R.string.analytics_late)
-        )
-        trendChart.post { ensureChartsConfigured() }
-
-        taskAdapter = AnalyticsTaskAdapter { ranking ->
-            viewModel.setTaskFilter(ranking.taskId)
-        }
-        findViewById<RecyclerView>(R.id.task_rankings).apply {
-            adapter = taskAdapter
-            layoutManager = LinearLayoutManager(this@AnalyticsActivity)
-            isNestedScrollingEnabled = false
-        }
+        pager.adapter = AnalyticsPagerAdapter(this)
+        TabLayoutMediator(tabs, pager) { tab, position ->
+            tab.text = getString(
+                when (position) {
+                    0 -> R.string.analytics_tab_overview
+                    1 -> R.string.analytics_tab_timeline
+                    2 -> R.string.analytics_tab_adherence
+                    else -> R.string.analytics_tab_patterns
+                }
+            )
+        }.attach()
 
         bindFilterListeners()
         retryButton.setOnClickListener { viewModel.refresh() }
@@ -116,23 +97,76 @@ class AnalyticsActivity : AppCompatActivity() {
             }
             viewModel.setRangePreset(preset)
         }
-        customRangeButton.setOnClickListener { showDateRangePicker() }
-        includeArchived.setOnCheckedChangeListener { _, checked ->
-            if (!rendering) viewModel.setIncludeArchived(checked)
+    }
+
+    private fun showFiltersSheet() {
+        val state = viewModel.uiState.value ?: return
+        val sheetView = layoutInflater.inflate(R.layout.bottom_sheet_analytics_filters, null)
+        val sheet = filterSheet ?: BottomSheetDialog(this).also { filterSheet = it }
+        sheet.setContentView(sheetView)
+        filterSheetView = sheetView
+
+        val tagFilter = sheetView.findViewById<AutoCompleteTextView>(R.id.sheet_tag_filter)
+        val taskFilter = sheetView.findViewById<AutoCompleteTextView>(R.id.sheet_task_filter)
+        val includeArchived = sheetView.findViewById<MaterialSwitch>(R.id.sheet_include_archived)
+        val sheetRangeSummary = sheetView.findViewById<TextView>(R.id.sheet_range_summary)
+
+        val options = when (state) {
+            is AnalyticsUiState.Content -> state.options
+            is AnalyticsUiState.Empty -> state.options
+            else -> AnalyticsFilterOptions()
         }
-        tagFilter.setOnItemClickListener { parent, _, position, _ ->
-            if (!rendering) {
-                val value = parent.getItemAtPosition(position).toString()
-                viewModel.setExactTag(value.takeUnless { it == getString(R.string.analytics_all_tags) })
+        bindSheetOptions(sheetView, options, state.filters)
+        sheetRangeSummary.text = filterSummary(state.filters, options)
+
+        sheetView.findViewById<MaterialButton>(R.id.sheet_custom_range_button)
+            .setOnClickListener {
+                sheet.dismiss()
+                showDateRangePicker()
             }
+        tagFilter.setOnItemClickListener { parent, _, position, _ ->
+            val value = parent.getItemAtPosition(position).toString()
+            viewModel.setExactTag(value.takeUnless { it == getString(R.string.analytics_all_tags) })
         }
         taskFilter.setOnItemClickListener { _, _, position, _ ->
-            if (!rendering) {
-                viewModel.setTaskFilter(
-                    if (position == 0) null else taskOptions.getOrNull(position - 1)?.taskId
-                )
-            }
+            viewModel.setTaskFilter(
+                if (position == 0) null else taskOptions.getOrNull(position - 1)?.taskId
+            )
         }
+        includeArchived.setOnCheckedChangeListener { _, checked ->
+            viewModel.setIncludeArchived(checked)
+        }
+
+        sheet.show()
+    }
+
+    private fun bindSheetOptions(
+        sheetView: View,
+        options: AnalyticsFilterOptions,
+        filters: AnalyticsFilterState
+    ) {
+        val tagFilter = sheetView.findViewById<AutoCompleteTextView>(R.id.sheet_tag_filter)
+        val taskFilter = sheetView.findViewById<AutoCompleteTextView>(R.id.sheet_task_filter)
+        val includeArchived = sheetView.findViewById<MaterialSwitch>(R.id.sheet_include_archived)
+
+        val tagLabels = listOf(getString(R.string.analytics_all_tags)) + options.tags
+        tagFilter.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, tagLabels)
+        )
+        tagFilter.setText(filters.exactTag ?: tagLabels.first(), false)
+
+        taskOptions = options.tasks
+        val taskLabels = listOf(getString(R.string.analytics_all_tasks)) +
+            options.tasks.map { option ->
+                if (option.isActive) option.taskName
+                else "${option.taskName} (${getString(R.string.analytics_archived)})"
+            }
+        taskFilter.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, taskLabels)
+        )
+        val selectedTask = options.tasks.indexOfFirst { it.taskId == filters.taskId }
+        taskFilter.setText(taskLabels.getOrElse(selectedTask + 1) { taskLabels.first() }, false)
+        includeArchived.isChecked = filters.includeArchived
     }
 
     private fun showDateRangePicker() {
@@ -162,25 +196,27 @@ class AnalyticsActivity : AppCompatActivity() {
 
     private fun render(state: AnalyticsUiState) {
         rendering = true
-        renderFilters(state.filters)
+        renderFilters(state)
         when (state) {
             is AnalyticsUiState.Loading -> showLoading()
             is AnalyticsUiState.Empty -> {
-                renderOptions(state.options, state.filters)
                 showStatus(getString(R.string.analytics_no_data), retry = false)
             }
             is AnalyticsUiState.Error -> {
                 showStatus(state.message.ifBlank { getString(R.string.analytics_error) }, retry = true)
             }
-            is AnalyticsUiState.Content -> {
-                renderOptions(state.options, state.filters)
-                renderMetrics(state.metrics)
-            }
+            is AnalyticsUiState.Content -> showContent()
         }
         rendering = false
     }
 
-    private fun renderFilters(filters: AnalyticsFilterState) {
+    private fun renderFilters(state: AnalyticsUiState) {
+        val filters = state.filters
+        val options = when (state) {
+            is AnalyticsUiState.Content -> state.options
+            is AnalyticsUiState.Empty -> state.options
+            else -> AnalyticsFilterOptions()
+        }
         val checkedId = when (filters.rangePreset) {
             AnalyticsRangePreset.LAST_30_DAYS -> R.id.range_30_days
             AnalyticsRangePreset.LAST_90_DAYS -> R.id.range_90_days
@@ -191,138 +227,52 @@ class AnalyticsActivity : AppCompatActivity() {
         if (filters.rangePreset != AnalyticsRangePreset.CUSTOM) {
             rangeToggle.check(checkedId)
         }
-        includeArchived.isChecked = filters.includeArchived
+        rangeSummary.text = filterSummary(filters, options)
+        filterSheetView?.let { bindSheetOptions(it, options, filters) }
+    }
+
+    private fun filterSummary(filters: AnalyticsFilterState, options: AnalyticsFilterOptions): String {
         val formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-        findViewById<TextView>(R.id.range_summary).text = filters.startDate?.let {
+        val range = filters.startDate?.let {
             getString(
                 R.string.analytics_range_summary,
                 formatter.format(it),
                 formatter.format(filters.endDate)
             )
         } ?: getString(R.string.analytics_range_until, formatter.format(filters.endDate))
-    }
-
-    private fun renderOptions(options: AnalyticsFilterOptions, filters: AnalyticsFilterState) {
-        val tagLabels = listOf(getString(R.string.analytics_all_tags)) + options.tags
-        tagFilter.setAdapter(
-            ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, tagLabels)
-        )
-        tagFilter.setText(filters.exactTag ?: tagLabels.first(), false)
-
-        taskOptions = options.tasks
-        val taskLabels = listOf(getString(R.string.analytics_all_tasks)) +
-            options.tasks.map { option ->
-                if (option.isActive) option.taskName
-                else "${option.taskName} (${getString(R.string.analytics_archived)})"
-            }
-        taskFilter.setAdapter(
-            ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, taskLabels)
-        )
-        val selectedTask = options.tasks.indexOfFirst { it.taskId == filters.taskId }
-        taskFilter.setText(taskLabels.getOrElse(selectedTask + 1) { taskLabels.first() }, false)
+        val tag = filters.exactTag ?: getString(R.string.analytics_all_tags)
+        val taskName = filters.taskId?.let { id ->
+            options.tasks.firstOrNull { it.taskId == id }?.taskName
+        } ?: getString(R.string.analytics_all_tasks)
+        val archived = if (filters.includeArchived) {
+            getString(R.string.analytics_include_archived)
+        } else {
+            getString(R.string.analytics_active_only)
+        }
+        return getString(R.string.analytics_filter_summary, range, tag, taskName, archived)
     }
 
     private fun showLoading() {
         progress.visibility = View.VISIBLE
         statusContainer.visibility = View.GONE
-        summaryViews.forEach { it.visibility = View.GONE }
-        trendChart.visibility = View.VISIBLE
-        adherenceChart.visibility = View.VISIBLE
+        pager.visibility = View.GONE
+        tabs.visibility = View.VISIBLE
+    }
+
+    private fun showContent() {
+        progress.visibility = View.GONE
+        statusContainer.visibility = View.GONE
+        pager.visibility = View.VISIBLE
+        tabs.visibility = View.VISIBLE
     }
 
     private fun showStatus(message: String, retry: Boolean) {
         progress.visibility = View.GONE
-        summaryViews.forEach { it.visibility = View.GONE }
-        trendChart.visibility = View.VISIBLE
-        adherenceChart.visibility = View.VISIBLE
+        pager.visibility = View.GONE
+        tabs.visibility = View.VISIBLE
         statusContainer.visibility = View.VISIBLE
         statusMessage.text = message
         retryButton.visibility = if (retry) View.VISIBLE else View.GONE
-        taskAdapter.submitList(emptyList())
-    }
-
-    private fun renderMetrics(metrics: AnalyticsMetrics) {
-        progress.visibility = View.GONE
-        statusContainer.visibility = View.GONE
-        summaryViews.forEach { it.visibility = View.VISIBLE }
-        trendChart.visibility = View.VISIBLE
-        adherenceChart.visibility = View.VISIBLE
-        findViewById<TextView>(R.id.completion_value).text =
-            metrics.summary.completionCount.toString()
-        findViewById<TextView>(R.id.interval_value).text =
-            metrics.summary.eligibleIntervalCount.toString()
-        findViewById<TextView>(R.id.on_schedule_value).text =
-            metrics.summary.onScheduleRate?.let {
-                getString(R.string.analytics_rate_percent, it * 100)
-            } ?: getString(R.string.analytics_rate_unavailable)
-        taskAdapter.submitList(metrics.taskRankings)
-        findViewById<TextView>(R.id.tag_rankings).text =
-            metrics.tagRankings.joinToString("\n") {
-                getString(R.string.analytics_tag_count, it.tag, it.completionCount)
-            }
-
-        trendAxisLabels = metrics.trend.map { point ->
-            when (metrics.trendGranularity) {
-                AnalyticsTrendGranularity.DAILY ->
-                    point.periodStart.format(DateTimeFormatter.ofPattern("MMM d"))
-                AnalyticsTrendGranularity.WEEKLY ->
-                    point.periodStart.format(DateTimeFormatter.ofPattern("MMM d"))
-                AnalyticsTrendGranularity.MONTHLY ->
-                    point.periodStart.format(DateTimeFormatter.ofPattern("MMM yy"))
-            }
-        }
-        trendChart.post { ensureChartsConfigured() }
-    }
-
-    private fun trendLabelSpacing(): Int {
-        val count = trendAxisLabels.size
-        return when {
-            count <= 7 -> 1
-            count <= 30 -> 4
-            else -> maxOf(1, count / 6)
-        }
-    }
-
-    private fun ensureChartsConfigured() {
-        val marker = DefaultCartesianMarker(
-            label = TextComponent(
-                color = MaterialColors.getColor(
-                    this,
-                    com.google.android.material.R.attr.colorOnSurface,
-                    0
-                )
-            ),
-            valueFormatter = DefaultCartesianMarker.ValueFormatter.default()
-        )
-        if (!chartsConfigured) {
-            val trendChartModel = trendChart.chart ?: return
-            val trendBottomAxis = trendChartModel.bottomAxis as? HorizontalAxis ?: return
-            trendChart.chart = trendChartModel.copy(
-                bottomAxis = trendBottomAxis.copy(
-                    itemPlacer = HorizontalAxis.ItemPlacer.aligned(
-                        spacing = { _ -> trendLabelSpacing() }
-                    ),
-                    valueFormatter = CartesianValueFormatter { _, value, _ ->
-                        trendAxisLabels.getOrNull(value.toInt()) ?: value.toInt().toString()
-                    }
-                ),
-                marker = marker
-            )
-            val adherenceChartModel = adherenceChart.chart ?: return
-            val adherenceBottomAxis = adherenceChartModel.bottomAxis as? HorizontalAxis ?: return
-            adherenceChart.chart = adherenceChartModel.copy(
-                bottomAxis = adherenceBottomAxis.copy(
-                    itemPlacer = HorizontalAxis.ItemPlacer.aligned(spacing = { _ -> 1 }),
-                    valueFormatter = CartesianValueFormatter { _, value, _ ->
-                        adherenceAxisLabels.getOrNull(value.toInt()) ?: value.toInt().toString()
-                    }
-                ),
-                marker = marker
-            )
-            chartsConfigured = true
-        }
-        trendChart.invalidate()
-        adherenceChart.invalidate()
     }
 
     private fun Long.toUtcLocalDate(): LocalDate =

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:fillViewport="true"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/hourly_title"
+            style="@style/TextAppearance.Material3.TitleMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/analytics_hourly_pattern" />
+
+        <com.patrykandpatrick.vico.views.cartesian.CartesianChartView
+            android:id="@+id/hourly_chart"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:contentDescription="@string/analytics_hourly_pattern_description"
+            app:chartStyle="@style/AnalyticsColumnChart" />
+
+        <TextView
+            android:id="@+id/daily_title"
+            style="@style/TextAppearance.Material3.TitleMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/analytics_daily_pattern" />
+
+        <com.patrykandpatrick.vico.views.cartesian.CartesianChartView
+            android:id="@+id/daily_chart"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:contentDescription="@string/analytics_daily_pattern_description"
+            app:chartStyle="@style/AnalyticsColumnChartFit" />
+
+        <TextView
+            android:id="@+id/heatmap_title"
+            style="@style/TextAppearance.Material3.TitleMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/analytics_heatmap" />
+
+        <com.enabwf.periodic.HeatmapView
+            android:id="@+id/heatmap"
+            android:layout_width="match_parent"
+            android:layout_height="260dp"
+            android:layout_marginTop="8dp"
+            android:contentDescription="@string/analytics_heatmap_description" />
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

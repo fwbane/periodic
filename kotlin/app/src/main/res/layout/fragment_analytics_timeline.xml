@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:fillViewport="true"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/bin_toggle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:checkedButton="@id/bin_day"
+            app:selectionRequired="true"
+            app:singleSelection="true">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/bin_hour"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/analytics_bin_hour" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/bin_day"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/analytics_bin_day" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/bin_week"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/analytics_bin_week" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/bin_month"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/analytics_bin_month" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+        <TextView
+            android:id="@+id/timeline_total_title"
+            style="@style/TextAppearance.Material3.TitleMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/analytics_timeline_total" />
+
+        <com.patrykandpatrick.vico.views.cartesian.CartesianChartView
+            android:id="@+id/timeline_total_chart"
+            android:layout_width="match_parent"
+            android:layout_height="240dp"
+            android:contentDescription="@string/analytics_timeline_total_description"
+            app:chartStyle="@style/AnalyticsColumnChart" />
+
+        <TextView
+            android:id="@+id/timeline_tags_title"
+            style="@style/TextAppearance.Material3.TitleMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/analytics_timeline_by_tag" />
+
+        <TextView
+            style="@style/TextAppearance.Material3.BodySmall"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/analytics_timeline_tag_overlap_note"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <com.patrykandpatrick.vico.views.cartesian.CartesianChartView
+            android:id="@+id/timeline_tags_chart"
+            android:layout_width="match_parent"
+            android:layout_height="260dp"
+            android:contentDescription="@string/analytics_timeline_by_tag_description"
+            app:chartStyle="@style/AnalyticsStackedColumnChart" />
+
+        <LinearLayout
+            android:id="@+id/timeline_tags_legend"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical" />
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    app:cardBackgroundColor="?attr/colorSurfaceContainer"
+    app:cardElevation="0dp"
+    app:strokeColor="?attr/colorOutlineVariant"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/adherence_task_name"
+            style="@style/TextAppearance.Material3.TitleSmall"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            tools:text="Water plants" />
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/adherence_progress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            app:trackCornerRadius="4dp" />
+
+        <TextView
+            android:id="@+id/adherence_summary"
+            style="@style/TextAppearance.Material3.BodyMedium"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            tools:text="83% adherence · median 6 days · period 7 days" />
+
+        <TextView
+            android:id="@+id/adherence_counts"
+            style="@style/TextAppearance.Material3.BodySmall"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            tools:text="Early 1 · On schedule 8 · Late 2" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

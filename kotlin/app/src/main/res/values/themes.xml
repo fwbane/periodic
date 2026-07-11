@@ -79,4 +79,37 @@
     <style name="AnalyticsAdherenceColumn">
         <item name="android:color">?attr/colorTertiary</item>
     </style>
+
+    <style name="AnalyticsLineChartFit" parent="AnalyticsLineChart">
+        <item name="scrollEnabled">false</item>
+        <item name="zoomEnabled">false</item>
+        <item name="lineLayerStyle">@style/AnalyticsLineLayerFit</item>
+    </style>
+
+    <style name="AnalyticsColumnChartFit" parent="AnalyticsColumnChart">
+        <item name="scrollEnabled">false</item>
+        <item name="zoomEnabled">false</item>
+        <item name="columnLayerStyle">@style/AnalyticsColumnLayerFit</item>
+    </style>
+
+    <style name="AnalyticsLineLayerFit">
+        <item name="line1Style">@style/AnalyticsTrendLine</item>
+        <item name="pointSpacing">8dp</item>
+    </style>
+
+    <style name="AnalyticsColumnLayerFit">
+        <item name="column1Style">@style/AnalyticsAdherenceColumn</item>
+        <item name="columnCollectionSpacing">8dp</item>
+    </style>
+
+    <style name="AnalyticsStackedColumnLayer" parent="AnalyticsColumnLayer">
+        <item name="mergeMode">stacked</item>
+        <item name="columnCollectionSpacing">8dp</item>
+    </style>
+
+    <style name="AnalyticsStackedColumnChart" parent="AnalyticsColumnChart">
+        <item name="scrollEnabled">true</item>
+        <item name="zoomEnabled">false</item>
+        <item name="columnLayerStyle">@style/AnalyticsStackedColumnLayer</item>
+    </style>
 </resources>

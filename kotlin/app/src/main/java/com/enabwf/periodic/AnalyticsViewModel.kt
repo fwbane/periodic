@@ -25,8 +25,17 @@ class AnalyticsViewModel(
     private var loadJob: Job? = null
     private var loadGeneration = 0L
 
+    private val adherenceHistoryEndExclusive: Date = Date.from(
+        LocalDate.of(3000, 1, 1).atStartOfDay(zoneId).toInstant()
+    )
+
     val trendChartProducer = CartesianChartModelProducer()
     val adherenceChartProducer = CartesianChartModelProducer()
+    val overviewTopTasksProducer = CartesianChartModelProducer()
+    val timelineTotalProducer = CartesianChartModelProducer()
+    val timelineTagsProducer = CartesianChartModelProducer()
+    val patternsHourlyProducer = CartesianChartModelProducer()
+    val patternsDailyProducer = CartesianChartModelProducer()
 
     private val _uiState = MutableLiveData<AnalyticsUiState>(
         AnalyticsUiState.Loading(filters)
@@ -44,7 +53,8 @@ class AnalyticsViewModel(
         updateFilters(presetFilters(preset).copy(
             exactTag = filters.exactTag,
             taskId = filters.taskId,
-            includeArchived = filters.includeArchived
+            includeArchived = filters.includeArchived,
+            binSize = filters.binSize
         ))
     }
 
@@ -71,6 +81,10 @@ class AnalyticsViewModel(
 
     fun setIncludeArchived(includeArchived: Boolean) {
         updateFilters(filters.copy(includeArchived = includeArchived))
+    }
+
+    fun setBinSize(binSize: AnalyticsBinSize) {
+        updateFilters(filters.copy(binSize = binSize))
     }
 
     fun refresh() {
@@ -143,11 +157,21 @@ class AnalyticsViewModel(
                     taskId = normalizedFilters.taskId,
                     exactTag = normalizedFilters.exactTag
                 )
+                val adherenceRows = repository.getAnalyticsCompletions(
+                    startTime = null,
+                    endTimeExclusive = adherenceHistoryEndExclusive,
+                    includeArchived = normalizedFilters.includeArchived,
+                    taskId = normalizedFilters.taskId,
+                    exactTag = normalizedFilters.exactTag
+                )
                 val metrics = AnalyticsCalculator.calculate(
                     rows = rows,
                     rangeStart = normalizedFilters.startDate,
                     rangeEnd = normalizedFilters.endDate,
-                    zoneId = zoneId
+                    zoneId = zoneId,
+                    tasks = tasks,
+                    requestedBinSize = normalizedFilters.binSize,
+                    adherenceRows = adherenceRows
                 )
                 if (generation != loadGeneration) return@launch
                 if (metrics.summary.completionCount > 0) {
@@ -184,6 +208,31 @@ class AnalyticsViewModel(
         adherenceChartProducer.runTransaction {
             columnSeries {
                 series(metrics.adherence.map { it.count })
+            }
+        }
+        overviewTopTasksProducer.runTransaction {
+            columnSeries {
+                series(metrics.overview.topTasks.map { it.completionCount })
+            }
+        }
+        timelineTotalProducer.runTransaction {
+            columnSeries {
+                series(metrics.timeline.bins.map { it.completionCount })
+            }
+        }
+        timelineTagsProducer.runTransaction {
+            columnSeries {
+                metrics.timeline.tagSeries.values.forEach { values -> series(values) }
+            }
+        }
+        patternsHourlyProducer.runTransaction {
+            columnSeries {
+                series(metrics.patterns.hourly.map { it.completionCount })
+            }
+        }
+        patternsDailyProducer.runTransaction {
+            columnSeries {
+                series(metrics.patterns.daily.map { it.completionCount })
             }
         }
     }

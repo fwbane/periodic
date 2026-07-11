@@ -1,5 +1,6 @@
 package com.enabwf.periodic
 
+import java.time.DayOfWeek
 import java.time.LocalDate
 
 enum class AnalyticsRangePreset {
@@ -16,7 +17,8 @@ data class AnalyticsFilterState(
     val endDate: LocalDate,
     val exactTag: String? = null,
     val taskId: Int? = null,
-    val includeArchived: Boolean = false
+    val includeArchived: Boolean = false,
+    val binSize: AnalyticsBinSize? = null
 )
 
 data class AnalyticsFilterOptions(
@@ -41,6 +43,13 @@ enum class AnalyticsTrendGranularity {
     DAILY,
     WEEKLY,
     MONTHLY
+}
+
+enum class AnalyticsBinSize {
+    HOUR,
+    DAY,
+    WEEK,
+    MONTH
 }
 
 data class AnalyticsTrendPoint(
@@ -75,13 +84,70 @@ data class AnalyticsTagRanking(
     val completionCount: Int
 )
 
+data class AnalyticsOverviewStats(
+    val totalTaskCount: Int,
+    val activeTaskCount: Int,
+    val daysInRange: Long,
+    val averageCompletionsPerDay: Double,
+    val topTasks: List<AnalyticsTaskRanking>
+)
+
+data class AnalyticsTimelineBin(
+    val start: LocalDate,
+    val startHour: Int? = null,
+    val completionCount: Int
+)
+
+data class AnalyticsTimelineSeries(
+    val binSize: AnalyticsBinSize,
+    val bins: List<AnalyticsTimelineBin>,
+    val tagSeries: Map<String, List<Int>>
+)
+
+data class AnalyticsTaskAdherence(
+    val taskId: Int,
+    val taskName: String,
+    val periodInMillis: Long,
+    val medianIntervalMillis: Long,
+    val adherencePercent: Double,
+    val earlyCount: Int,
+    val onScheduleCount: Int,
+    val lateCount: Int
+)
+
+data class AnalyticsHourlyPattern(
+    val hour: Int,
+    val completionCount: Int
+)
+
+data class AnalyticsDailyPattern(
+    val dayOfWeek: DayOfWeek,
+    val completionCount: Int
+)
+
+data class AnalyticsHeatmapCell(
+    val dayOfWeek: DayOfWeek,
+    val hour: Int,
+    val completionCount: Int
+)
+
+data class AnalyticsPatterns(
+    val hourly: List<AnalyticsHourlyPattern>,
+    val daily: List<AnalyticsDailyPattern>,
+    val heatmap: List<AnalyticsHeatmapCell>
+)
+
 data class AnalyticsMetrics(
     val summary: AnalyticsSummary,
     val trendGranularity: AnalyticsTrendGranularity,
     val trend: List<AnalyticsTrendPoint>,
     val adherence: List<AnalyticsAdherenceBucket>,
     val taskRankings: List<AnalyticsTaskRanking>,
-    val tagRankings: List<AnalyticsTagRanking>
+    val tagRankings: List<AnalyticsTagRanking>,
+    val overview: AnalyticsOverviewStats,
+    val timeline: AnalyticsTimelineSeries,
+    val taskAdherence: List<AnalyticsTaskAdherence>,
+    val patterns: AnalyticsPatterns
 )
 
 sealed interface AnalyticsUiState {
