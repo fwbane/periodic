@@ -76,7 +76,8 @@ data class AnalyticsTaskRanking(
     val completionCount: Int,
     val eligibleIntervalCount: Int,
     val onScheduleRate: Double?,
-    val medianIntervalMillis: Long?
+    val medianIntervalMillis: Long?,
+    val firstTag: String = AnalyticsTagColors.UNTAGGED
 )
 
 data class AnalyticsTagRanking(
@@ -104,16 +105,33 @@ data class AnalyticsTimelineSeries(
     val tagSeries: Map<String, List<Int>>
 )
 
+data class AnalyticsHistogramBucket(
+    val startRatio: Double,
+    val widthRatio: Double,
+    val count: Int
+)
+
 data class AnalyticsTaskAdherence(
     val taskId: Int,
     val taskName: String,
+    val firstTag: String,
     val periodInMillis: Long,
+    val meanIntervalMillis: Long,
     val medianIntervalMillis: Long,
     val adherencePercent: Double,
-    val earlyCount: Int,
-    val onScheduleCount: Int,
-    val lateCount: Int
-)
+    val intervalCount: Int,
+    val minRatio: Double,
+    val q1Ratio: Double,
+    val medianRatio: Double,
+    val q3Ratio: Double,
+    val maxRatio: Double,
+    val histogram: List<AnalyticsHistogramBucket>,
+    val earlyCount: Int = 0,
+    val onScheduleCount: Int = 0,
+    val lateCount: Int = 0
+) {
+    val hasBoxPlot: Boolean get() = intervalCount >= AnalyticsCalculator.MIN_BOX_PLOT_INTERVALS
+}
 
 data class AnalyticsHourlyPattern(
     val hour: Int,
@@ -148,7 +166,11 @@ data class AnalyticsMetrics(
     val timeline: AnalyticsTimelineSeries,
     val taskAdherence: List<AnalyticsTaskAdherence>,
     val patterns: AnalyticsPatterns
-)
+) {
+    /** Tasks with enough intervals for the top box-plot chart, sorted by median ratio. */
+    val taskBoxPlots: List<AnalyticsTaskAdherence>
+        get() = taskAdherence.filter { it.hasBoxPlot }
+}
 
 sealed interface AnalyticsUiState {
     val filters: AnalyticsFilterState

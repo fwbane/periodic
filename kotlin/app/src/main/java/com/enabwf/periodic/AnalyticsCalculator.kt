@@ -7,6 +7,14 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 
 object AnalyticsCalculator {
+    const val MIN_BOX_PLOT_INTERVALS = 4
+    const val HISTOGRAM_BUCKET_WIDTH_RATIO = 0.05
+    /** Y-axis ceiling for the schedule-adherence box plot (interval / period). */
+    const val BOX_PLOT_MAX_RATIO = 5.0
+    /** Max high outliers omitted from per-task histograms. */
+    const val MAX_OUTLIERS_DROPPED = 2
+    private const val MIN_INTERVALS_FOR_OUTLIER_TRIM = 5
+
     fun calculate(
         rows: List<AnalyticsCompletionRow>,
         rangeStart: LocalDate?,
@@ -14,6 +22,7 @@ object AnalyticsCalculator {
         zoneId: ZoneId,
         tasks: List<Task> = emptyList(),
         requestedBinSize: AnalyticsBinSize? = null,
+        @Suppress("UNUSED_PARAMETER")
         adherenceRows: List<AnalyticsCompletionRow>? = null
     ): AnalyticsMetrics {
         require(rangeStart == null || !rangeStart.isAfter(rangeEnd)) {
@@ -63,7 +72,7 @@ object AnalyticsCalculator {
             tagRankings = buildTagRankings(datedRows.map { it.first }),
             overview = buildOverviewStats(datedRows.map { it.first }, tasks, effectiveStart, rangeEnd),
             timeline = buildTimeline(datedRows, effectiveStart, rangeEnd, binSize, zoneId),
-            taskAdherence = buildTaskAdherence(adherenceRows ?: rows, tasks),
+            taskAdherence = buildTaskAdherence(datedRows.map { it.first }, tasks),
             patterns = buildPatterns(datedRows, zoneId)
         )
     }
@@ -167,7 +176,8 @@ object AnalyticsCalculator {
                         },
                         eligibleCategories.size
                     ),
-                    medianIntervalMillis = median(intervals)
+                    medianIntervalMillis = median(intervals),
+                    firstTag = AnalyticsTagColors.firstTag(first.tags)
                 )
             }
             .sortedWith(
@@ -218,7 +228,8 @@ object AnalyticsCalculator {
                         completionCount = count,
                         eligibleIntervalCount = 0,
                         onScheduleRate = null,
-                        medianIntervalMillis = null
+                        medianIntervalMillis = null,
+                        firstTag = AnalyticsTagColors.firstTag(row.tags)
                     )
                 }
             }
@@ -374,28 +385,103 @@ object AnalyticsCalculator {
             }
             if (intervals.isEmpty()) return@mapNotNull null
 
-            val early = intervals.count { it.toDouble() / period < 0.9 }
-            val onSchedule = intervals.count {
-                val ratio = it.toDouble() / period
-                ratio in 0.9..1.1
-            }
-            val late = intervals.size - early - onSchedule
+            val ratios = intervals.map { it.toDouble() / period.toDouble() }.sorted()
             val median = median(intervals) ?: return@mapNotNull null
-            val ratio = median.toDouble() / period
+            val mean = intervals.sum() / intervals.size
+            val medianRatio = median.toDouble() / period.toDouble()
+            val early = ratios.count { it < 0.9 }
+            val onSchedule = ratios.count { it in 0.9..1.1 }
+            val late = ratios.size - early - onSchedule
             AnalyticsTaskAdherence(
                 taskId = taskId,
                 taskName = task?.name ?: ordered.first().taskName,
+                firstTag = AnalyticsTagColors.firstTag(ordered.first().tags),
                 periodInMillis = period,
+                meanIntervalMillis = mean,
                 medianIntervalMillis = median,
-                adherencePercent = minOf(1.0, 1.0 / maxOf(ratio, 1.0 / ratio)) * 100,
+                adherencePercent = minOf(1.0, 1.0 / maxOf(medianRatio, 1.0 / medianRatio)) * 100,
+                intervalCount = intervals.size,
+                minRatio = ratios.first(),
+                q1Ratio = percentile(ratios, 0.25),
+                medianRatio = medianRatio,
+                q3Ratio = percentile(ratios, 0.75),
+                maxRatio = ratios.last(),
+                histogram = buildHistogram(ratios),
                 earlyCount = early,
                 onScheduleCount = onSchedule,
                 lateCount = late
             )
         }.sortedWith(
-            compareByDescending<AnalyticsTaskAdherence> { it.adherencePercent }
+            compareBy<AnalyticsTaskAdherence> { it.medianRatio }
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { it.taskName }
         )
+    }
+
+    /**
+     * Builds a histogram over interval/period ratios. Up to [MAX_OUTLIERS_DROPPED]
+     * high Tukey outliers are omitted so a single long gap doesn't crush the scale.
+     */
+    private fun buildHistogram(ratios: List<Double>): List<AnalyticsHistogramBucket> {
+        if (ratios.isEmpty()) return emptyList()
+        val plotted = trimTopOutliers(ratios)
+        val width = HISTOGRAM_BUCKET_WIDTH_RATIO
+        var minIndex = kotlin.math.floor(plotted.first() / width).toInt()
+        var maxIndex = kotlin.math.floor(plotted.last() / width).toInt()
+        if (maxIndex < minIndex) maxIndex = minIndex
+        // Pad one empty bucket on each side when possible for readability.
+        minIndex -= 1
+        maxIndex += 1
+        val counts = IntArray(maxIndex - minIndex + 1)
+        plotted.forEach { ratio ->
+            val index = kotlin.math.floor(ratio / width).toInt().coerceIn(minIndex, maxIndex)
+            counts[index - minIndex]++
+        }
+        return counts.indices.map { offset ->
+            val bucketIndex = minIndex + offset
+            AnalyticsHistogramBucket(
+                startRatio = bucketIndex * width,
+                widthRatio = width,
+                count = counts[offset]
+            )
+        }
+    }
+
+    /**
+     * Drops at most [MAX_OUTLIERS_DROPPED] values above the Tukey upper fence
+     * (Q3 + 1.5×IQR). Requires enough samples so the fence is meaningful.
+     */
+    internal fun trimTopOutliers(
+        sortedRatios: List<Double>,
+        maxDrop: Int = MAX_OUTLIERS_DROPPED
+    ): List<Double> {
+        if (sortedRatios.size < MIN_INTERVALS_FOR_OUTLIER_TRIM) return sortedRatios
+        val q1 = percentile(sortedRatios, 0.25)
+        val q3 = percentile(sortedRatios, 0.75)
+        val iqr = q3 - q1
+        if (iqr <= 0.0) return sortedRatios
+        val fence = q3 + 1.5 * iqr
+        var result = sortedRatios
+        var dropped = 0
+        while (
+            dropped < maxDrop &&
+            result.size > MIN_INTERVALS_FOR_OUTLIER_TRIM - 1 &&
+            result.last() > fence
+        ) {
+            result = result.dropLast(1)
+            dropped++
+        }
+        return result
+    }
+
+    private fun percentile(sorted: List<Double>, percentile: Double): Double {
+        if (sorted.isEmpty()) return 0.0
+        if (sorted.size == 1) return sorted[0]
+        val rank = (sorted.size - 1) * percentile
+        val lower = kotlin.math.floor(rank).toInt()
+        val upper = kotlin.math.ceil(rank).toInt()
+        if (lower == upper) return sorted[lower]
+        val weight = rank - lower
+        return sorted[lower] * (1.0 - weight) + sorted[upper] * weight
     }
 
     private fun buildPatterns(

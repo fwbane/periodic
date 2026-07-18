@@ -60,6 +60,19 @@
         <item name="columnLayerStyle">@style/AnalyticsColumnLayer</item>
     </style>
 
+    <style name="AnalyticsCandlestickChart">
+        <item name="layers">candlestick</item>
+        <item name="showStartAxis">true</item>
+        <item name="showBottomAxis">true</item>
+        <item name="scrollEnabled">true</item>
+        <item name="zoomEnabled">true</item>
+    </style>
+
+    <style name="AnalyticsCandlestickChartFit" parent="AnalyticsCandlestickChart">
+        <item name="scrollEnabled">false</item>
+        <item name="zoomEnabled">false</item>
+    </style>
+
     <style name="AnalyticsLineLayer">
         <item name="line1Style">@style/AnalyticsTrendLine</item>
         <item name="pointSpacing">24dp</item>

@@ -216,24 +216,133 @@ class AnalyticsCalculatorTest {
     fun perTaskAdherenceUsesMedianRatioFormula() {
         val period = 86_400_000L
         val task = Task(id = 1, name = "Task", periodInMillis = period)
+        val base = instant("2026-01-01")
         val metrics = calculate(
             listOf(
-                row(id = 1, completionMillis = instant("2026-01-01"), previousMillis = null, periodMillis = period),
+                row(id = 1, completionMillis = base, previousMillis = null, periodMillis = period),
                 row(
                     id = 2,
-                    completionMillis = instant("2026-01-02"),
-                    previousMillis = instant("2026-01-01"),
+                    completionMillis = base + period,
+                    previousMillis = base,
+                    periodMillis = period
+                ),
+                row(
+                    id = 3,
+                    completionMillis = base + 2 * period,
+                    previousMillis = base + period,
+                    periodMillis = period
+                ),
+                row(
+                    id = 4,
+                    completionMillis = base + 3 * period,
+                    previousMillis = base + 2 * period,
+                    periodMillis = period
+                ),
+                row(
+                    id = 5,
+                    completionMillis = base + 4 * period,
+                    previousMillis = base + 3 * period,
                     periodMillis = period
                 )
             ),
             LocalDate.parse("2026-01-01"),
-            LocalDate.parse("2026-01-03"),
+            LocalDate.parse("2026-01-10"),
             tasks = listOf(task)
         )
 
         val adherence = metrics.taskAdherence.single()
         assertEquals(100.0, adherence.adherencePercent, 0.01)
-        assertEquals(1, adherence.onScheduleCount)
+        assertEquals(4, adherence.intervalCount)
+        assertEquals(4, adherence.onScheduleCount)
+        assertEquals(true, adherence.hasBoxPlot)
+        assertEquals(1.0, adherence.medianRatio, 0.01)
+        assertEquals(true, adherence.histogram.isNotEmpty())
+    }
+
+    @Test
+    fun histogramDropsUpToTwoHighTukeyOutliers() {
+        val cluster = listOf(0.95, 0.97, 0.99, 1.0, 1.01, 1.03, 1.05)
+        val ratios = cluster + listOf(4.0, 6.0)
+        val trimmed = AnalyticsCalculator.trimTopOutliers(ratios)
+        assertEquals(cluster, trimmed)
+    }
+
+    @Test
+    fun histogramKeepsPointsWhenTooFewForOutlierTrim() {
+        val ratios = listOf(1.0, 1.1, 4.0)
+        assertEquals(ratios, AnalyticsCalculator.trimTopOutliers(ratios))
+    }
+
+    @Test
+    fun boxPlotExtentsKeepRawMaxBeforeDisplayClamp() {
+        val period = 1_000L
+        val base = 10_000L
+        val gaps = listOf(950L, 970L, 990L, 1_000L, 1_010L, 1_030L, 1_050L, 4_000L, 6_000L)
+        val rows = mutableListOf(
+            row(id = 1, completionMillis = base, previousMillis = null, periodMillis = period)
+        )
+        var previous = base
+        gaps.forEachIndexed { index, gap ->
+            val next = previous + gap
+            rows += row(
+                id = index + 2,
+                completionMillis = next,
+                previousMillis = previous,
+                periodMillis = period
+            )
+            previous = next
+        }
+        val metrics = calculate(
+            rows,
+            LocalDate.parse("1970-01-01"),
+            LocalDate.parse("1970-01-02")
+        )
+        val box = metrics.taskBoxPlots.single()
+        // Raw stats keep the outlier; the chart clamps display to BOX_PLOT_MAX_RATIO.
+        assertEquals(6.0, box.maxRatio, 0.01)
+        assertEquals(5.0, AnalyticsCalculator.BOX_PLOT_MAX_RATIO, 0.0)
+    }
+
+    @Test
+    fun boxPlotHiddenUntilFourIntervals() {
+        val period = 1_000L
+        val metrics = calculate(
+            listOf(
+                row(id = 1, completionMillis = 1_000, previousMillis = null, periodMillis = period),
+                row(id = 2, completionMillis = 2_000, previousMillis = 1_000, periodMillis = period),
+                row(id = 3, completionMillis = 3_000, previousMillis = 2_000, periodMillis = period),
+                row(id = 4, completionMillis = 4_000, previousMillis = 3_000, periodMillis = period)
+            ),
+            LocalDate.parse("1970-01-01"),
+            LocalDate.parse("1970-01-02")
+        )
+        assertEquals(1, metrics.taskAdherence.size)
+        assertEquals(false, metrics.taskAdherence.single().hasBoxPlot)
+        assertEquals(0, metrics.taskBoxPlots.size)
+    }
+
+    @Test
+    fun boxPlotUsesFirstTagAndSortsByMedianRatio() {
+        val period = 1_000L
+        val metrics = calculate(
+            listOf(
+                row(id = 1, taskId = 1, taskName = "Late", tags = "b,a", completionMillis = 10_000, previousMillis = null, periodMillis = period),
+                row(id = 2, taskId = 1, taskName = "Late", tags = "b,a", completionMillis = 12_000, previousMillis = 10_000, periodMillis = period),
+                row(id = 3, taskId = 1, taskName = "Late", tags = "b,a", completionMillis = 14_000, previousMillis = 12_000, periodMillis = period),
+                row(id = 4, taskId = 1, taskName = "Late", tags = "b,a", completionMillis = 16_000, previousMillis = 14_000, periodMillis = period),
+                row(id = 5, taskId = 1, taskName = "Late", tags = "b,a", completionMillis = 18_000, previousMillis = 16_000, periodMillis = period),
+                row(id = 6, taskId = 2, taskName = "Early", tags = "z", completionMillis = 10_000, previousMillis = null, periodMillis = period),
+                row(id = 7, taskId = 2, taskName = "Early", tags = "z", completionMillis = 10_500, previousMillis = 10_000, periodMillis = period),
+                row(id = 8, taskId = 2, taskName = "Early", tags = "z", completionMillis = 11_000, previousMillis = 10_500, periodMillis = period),
+                row(id = 9, taskId = 2, taskName = "Early", tags = "z", completionMillis = 11_500, previousMillis = 11_000, periodMillis = period),
+                row(id = 10, taskId = 2, taskName = "Early", tags = "z", completionMillis = 12_000, previousMillis = 11_500, periodMillis = period)
+            ),
+            LocalDate.parse("1970-01-01"),
+            LocalDate.parse("1970-01-02")
+        )
+        assertEquals(listOf("Early", "Late"), metrics.taskBoxPlots.map { it.taskName })
+        assertEquals("b", metrics.taskBoxPlots.first { it.taskName == "Late" }.firstTag)
+        assertEquals("z", metrics.taskBoxPlots.first { it.taskName == "Early" }.firstTag)
     }
 
     @Test

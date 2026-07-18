@@ -22,9 +22,26 @@
         <com.patrykandpatrick.vico.views.cartesian.CartesianChartView
             android:id="@+id/adherence_summary_chart"
             android:layout_width="match_parent"
-            android:layout_height="220dp"
+            android:layout_height="240dp"
             android:contentDescription="@string/analytics_adherence_chart_description"
-            app:chartStyle="@style/AnalyticsColumnChartFit" />
+            app:chartStyle="@style/AnalyticsCandlestickChart" />
+
+        <TextView
+            android:id="@+id/adherence_box_empty"
+            style="@style/TextAppearance.Material3.BodyMedium"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/analytics_adherence_box_empty"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/adherence_box_legend"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical" />
 
         <TextView
             android:id="@+id/adherence_list_title"

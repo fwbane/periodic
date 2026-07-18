@@ -35,7 +35,7 @@ class AnalyticsPatternsFragment : AnalyticsTabFragment(R.layout.fragment_analyti
             hourlyChart,
             AnalyticsLabelFormatter.hourlyLabels(),
             binCount = 24,
-            fitToWidth = false
+            fitToWidth = true
         )
         AnalyticsChartConfigurator.configureCategoryChart(
             requireContext(),

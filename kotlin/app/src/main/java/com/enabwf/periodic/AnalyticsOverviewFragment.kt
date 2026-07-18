@@ -21,7 +21,6 @@ class AnalyticsOverviewFragment : AnalyticsTabFragment(R.layout.fragment_analyti
         topTasksChart.modelProducer = viewModel.overviewTopTasksProducer
         contentViews = listOf(
             view.findViewById(R.id.summary_cards),
-            view.findViewById(R.id.summary_cards_row2),
             view.findViewById(R.id.top_tasks_title),
             view.findViewById(R.id.top_tasks_chart),
             view.findViewById(R.id.top_tasks_legend),
@@ -48,16 +47,8 @@ class AnalyticsOverviewFragment : AnalyticsTabFragment(R.layout.fragment_analyti
         val metrics = state.metrics
         view?.findViewById<TextView>(R.id.completion_value)?.text =
             metrics.summary.completionCount.toString()
-        view?.findViewById<TextView>(R.id.interval_value)?.text =
-            metrics.summary.eligibleIntervalCount.toString()
-        view?.findViewById<TextView>(R.id.on_schedule_value)?.text =
-            metrics.summary.onScheduleRate?.let {
-                getString(R.string.analytics_rate_percent, it * 100)
-            } ?: getString(R.string.analytics_rate_unavailable)
         view?.findViewById<TextView>(R.id.active_tasks_value)?.text =
             metrics.overview.activeTaskCount.toString()
-        view?.findViewById<TextView>(R.id.days_value)?.text =
-            metrics.overview.daysInRange.toString()
         view?.findViewById<TextView>(R.id.avg_per_day_value)?.text =
             String.format(Locale.getDefault(), "%.1f", metrics.overview.averageCompletionsPerDay)
         taskAdapter.submitList(metrics.taskRankings)
@@ -72,24 +63,30 @@ class AnalyticsOverviewFragment : AnalyticsTabFragment(R.layout.fragment_analyti
             trendLabels,
             metrics.trend.size
         )
-        AnalyticsChartConfigurator.configureCategoryChart(
+        val topTasks = metrics.overview.topTasks
+        val tagColors = AnalyticsTagColors.colorMap(
+            requireContext(),
+            topTasks.map { it.firstTag }
+        )
+        val barColors = topTasks.map { tagColors.getValue(it.firstTag) }
+        AnalyticsChartConfigurator.configureColoredCategoryChart(
             requireContext(),
             topTasksChart,
-            AnalyticsLabelFormatter.topTaskLabels(metrics.overview.topTasks),
+            AnalyticsLabelFormatter.topTaskLabels(topTasks),
+            barColors,
             showAxisLabels = false
         )
-        val topTaskColor = AnalyticsChartColors.seriesColors(requireContext(), 1).first()
         view?.findViewById<ViewGroup>(R.id.top_tasks_legend)?.let { legend ->
             AnalyticsChartLegend.bind(
                 legend,
-                metrics.overview.topTasks.map { task ->
+                topTasks.map { task ->
                     AnalyticsChartLegend.LegendEntry(
                         label = getString(
                             R.string.analytics_top_task_legend_entry,
                             task.taskName,
                             task.completionCount
                         ),
-                        color = topTaskColor
+                        color = tagColors.getValue(task.firstTag)
                     )
                 }
             )

@@ -37,7 +37,9 @@
     <string name="analytics_completion_trend">Completion trend</string>
     <string name="analytics_trend_chart_description">Interactive completion trend chart. Tap a point for its value; pinch or drag to inspect dense ranges.</string>
     <string name="analytics_adherence_distribution">Schedule adherence</string>
-    <string name="analytics_adherence_chart_description">Distribution of early, on-schedule, and late intervals.</string>
+    <string name="analytics_adherence_chart_description">Box plot of completion intervals relative to each task\'s set period. Tap a box for details.</string>
+    <string name="analytics_adherence_box_empty">Need at least 4 completion intervals per task to show the box plot.</string>
+    <string name="analytics_adherence_box_marker">%1$s\nPeriod %2$s\nMean %3$s · median %4$s</string>
     <string name="analytics_ranked_tasks">Tasks</string>
     <string name="analytics_ranked_tags">Top tags</string>
     <string name="analytics_no_data">No completions match these filters.</string>
@@ -82,7 +84,6 @@
     <string name="analytics_timeline_tag_overlap_note">Counts may overlap across tags when a task has multiple tags.</string>
     <string name="analytics_adherence_by_task">Per-task adherence</string>
     <string name="analytics_adherence_row_summary">%1$.0f%% adherence · median %2$s · period %3$s</string>
-    <string name="analytics_adherence_row_counts">Early %1$d · On schedule %2$d · Late %3$d</string>
     <string name="analytics_hourly_pattern">By hour of day</string>
     <string name="analytics_hourly_pattern_description">Completion counts grouped by hour of day.</string>
     <string name="analytics_daily_pattern">By day of week</string>

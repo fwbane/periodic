@@ -13,6 +13,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import com.patrykandpatrick.vico.views.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.views.cartesian.data.candlestickModel
 import com.patrykandpatrick.vico.views.cartesian.data.columnSeries
 import com.patrykandpatrick.vico.views.cartesian.data.lineSeries
 
@@ -24,10 +25,6 @@ class AnalyticsViewModel(
     private var filters = presetFilters(AnalyticsRangePreset.LAST_90_DAYS)
     private var loadJob: Job? = null
     private var loadGeneration = 0L
-
-    private val adherenceHistoryEndExclusive: Date = Date.from(
-        LocalDate.of(3000, 1, 1).atStartOfDay(zoneId).toInstant()
-    )
 
     val trendChartProducer = CartesianChartModelProducer()
     val adherenceChartProducer = CartesianChartModelProducer()
@@ -157,21 +154,13 @@ class AnalyticsViewModel(
                     taskId = normalizedFilters.taskId,
                     exactTag = normalizedFilters.exactTag
                 )
-                val adherenceRows = repository.getAnalyticsCompletions(
-                    startTime = null,
-                    endTimeExclusive = adherenceHistoryEndExclusive,
-                    includeArchived = normalizedFilters.includeArchived,
-                    taskId = normalizedFilters.taskId,
-                    exactTag = normalizedFilters.exactTag
-                )
                 val metrics = AnalyticsCalculator.calculate(
                     rows = rows,
                     rangeStart = normalizedFilters.startDate,
                     rangeEnd = normalizedFilters.endDate,
                     zoneId = zoneId,
                     tasks = tasks,
-                    requestedBinSize = normalizedFilters.binSize,
-                    adherenceRows = adherenceRows
+                    requestedBinSize = normalizedFilters.binSize
                 )
                 if (generation != loadGeneration) return@launch
                 if (metrics.summary.completionCount > 0) {
@@ -205,9 +194,15 @@ class AnalyticsViewModel(
                 )
             }
         }
-        adherenceChartProducer.runTransaction {
-            columnSeries {
-                series(metrics.adherence.map { it.count })
+        val boxPlots = metrics.taskBoxPlots
+        if (boxPlots.isNotEmpty()) {
+            adherenceChartProducer.runTransaction {
+                candlestickModel(
+                    opening = boxPlots.map { clampBoxPlotRatio(it.q1Ratio) },
+                    closing = boxPlots.map { clampBoxPlotRatio(it.q3Ratio) },
+                    low = boxPlots.map { clampBoxPlotRatio(it.minRatio) },
+                    high = boxPlots.map { clampBoxPlotRatio(it.maxRatio) }
+                )
             }
         }
         overviewTopTasksProducer.runTransaction {
@@ -236,6 +231,9 @@ class AnalyticsViewModel(
             }
         }
     }
+
+    private fun clampBoxPlotRatio(ratio: Double): Double =
+        ratio.coerceIn(0.0, AnalyticsCalculator.BOX_PLOT_MAX_RATIO)
 }
 
 class AnalyticsViewModelFactory(

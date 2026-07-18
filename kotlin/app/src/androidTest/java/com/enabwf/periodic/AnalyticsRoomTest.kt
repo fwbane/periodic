@@ -137,18 +137,12 @@ class AnalyticsRoomTest {
     }
 
     @Test
-    fun perTaskAdherenceUsesFullHistoryRowsFromDatabase() = runBlocking {
+    fun perTaskAdherenceUsesSelectedRangeRows() = runBlocking {
         val taskId = insertTask("Stretch")
         insertCompletion(taskId, "2026-01-01")
         insertCompletion(taskId, "2026-01-08")
         insertCompletion(taskId, "2026-01-15")
 
-        val adherenceRows = dao.getAnalyticsCompletions(
-            startTime = null,
-            endTimeExclusive = date("2030-01-01"),
-            includeArchived = false,
-            taskId = null
-        )
         val rangeRows = dao.getAnalyticsCompletions(
             startTime = date("2026-01-01"),
             endTimeExclusive = date("2026-01-31"),
@@ -161,8 +155,7 @@ class AnalyticsRoomTest {
             rangeStart = LocalDate.parse("2026-01-01"),
             rangeEnd = LocalDate.parse("2026-01-30"),
             zoneId = ZoneOffset.UTC,
-            tasks = tasks,
-            adherenceRows = adherenceRows
+            tasks = tasks
         )
 
         assertEquals(1, metrics.taskAdherence.size)

@@ -23,12 +23,11 @@
             android:layout_height="wrap_content"
             tools:text="Water plants" />
 
-        <com.google.android.material.progressindicator.LinearProgressIndicator
-            android:id="@+id/adherence_progress"
+        <com.enabwf.periodic.IntervalHistogramView
+            android:id="@+id/adherence_histogram"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            app:trackCornerRadius="4dp" />
+            android:layout_height="88dp"
+            android:layout_marginTop="8dp" />
 
         <TextView
             android:id="@+id/adherence_summary"
@@ -37,14 +36,5 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             tools:text="83% adherence · median 6 days · period 7 days" />
-
-        <TextView
-            android:id="@+id/adherence_counts"
-            style="@style/TextAppearance.Material3.BodySmall"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            tools:text="Early 1 · On schedule 8 · Late 2" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
