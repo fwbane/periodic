@@ -1,0 +1,6 @@
+# Normalize line endings for all text files so the repo is
+# consistent regardless of the checking-out platform's git config.
+* text=auto eol=lf
+
+# Windows batch scripts conventionally use CRLF.
+*.bat text eol=crlf
